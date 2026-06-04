@@ -1,0 +1,1053 @@
+/* REST Radar admin UI - 0.5.2 */
+.rest-radar-wrap {
+	--rr-bg: #f6f7fb;
+	--rr-surface: #ffffff;
+	--rr-surface-soft: #f8fafc;
+	--rr-border: #d7dde7;
+	--rr-border-soft: #e8edf3;
+	--rr-text: #172033;
+	--rr-muted: #657084;
+	--rr-primary: #2563eb;
+	--rr-primary-dark: #1d4ed8;
+	--rr-critical: #b42318;
+	--rr-high: #d92d20;
+	--rr-review: #b54708;
+	--rr-public: #026aa2;
+	--rr-low: #027a48;
+	--rr-shadow: 0 8px 26px rgba(15, 23, 42, 0.07);
+	max-width: 1640px;
+	color: var(--rr-text);
+}
+
+.rest-radar-wrap * {
+	box-sizing: border-box;
+}
+
+.rest-radar-wrap code {
+	border-radius: 6px;
+	background: #f1f5f9;
+	color: #0f172a;
+	padding: 2px 5px;
+	font-size: 12px;
+}
+
+.rest-radar-hero {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	gap: 20px;
+	margin: 20px 0 18px;
+	padding: 24px 26px;
+	border: 1px solid var(--rr-border);
+	border-radius: 18px;
+	background:
+		radial-gradient(circle at 0 0, rgba(37, 99, 235, 0.12), transparent 32%),
+		linear-gradient(135deg, #ffffff 0%, #f7faff 100%);
+	box-shadow: var(--rr-shadow);
+}
+
+.rest-radar-kicker {
+	margin-bottom: 8px;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--rr-primary);
+}
+
+.rest-radar-hero h1 {
+	margin: 0;
+	font-size: 28px;
+	font-weight: 800;
+	letter-spacing: -0.03em;
+	color: var(--rr-text);
+}
+
+.rest-radar-lead {
+	max-width: 880px;
+	margin: 10px 0 0;
+	font-size: 14px;
+	line-height: 1.6;
+	color: var(--rr-muted);
+}
+
+.rest-radar-hero-actions {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	flex-wrap: wrap;
+	min-width: 260px;
+}
+
+.rest-radar-version-pill,
+.rest-radar-status-dot,
+.rest-radar-dashboard-pill {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	white-space: nowrap;
+	padding: 5px 9px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.01em;
+	border: 1px solid var(--rr-border);
+	background: var(--rr-surface-soft);
+	color: var(--rr-muted);
+}
+
+.rest-radar-version-pill {
+	background: #eff6ff;
+	border-color: #bfdbfe;
+	color: #1d4ed8;
+}
+
+.rest-radar-status-dot::before,
+.rest-radar-dashboard-pill::before {
+	content: "";
+	width: 7px;
+	height: 7px;
+	border-radius: 999px;
+	background: currentColor;
+}
+
+.rest-radar-status-dot.is-active,
+.rest-radar-dashboard-pill.is-on {
+	background: #ecfdf3;
+	border-color: #abefc6;
+	color: var(--rr-low);
+}
+
+.rest-radar-status-dot.is-inactive,
+.rest-radar-dashboard-pill.is-off {
+	background: #fff1f3;
+	border-color: #fecdd3;
+	color: #be123c;
+}
+
+.rest-radar-wrap .button {
+	border-radius: 8px;
+	font-weight: 650;
+}
+
+.rest-radar-wrap .button-primary {
+	background: var(--rr-primary);
+	border-color: var(--rr-primary);
+}
+
+.rest-radar-wrap .button-primary:hover,
+.rest-radar-wrap .button-primary:focus {
+	background: var(--rr-primary-dark);
+	border-color: var(--rr-primary-dark);
+}
+
+.rest-radar-reset-button {
+	display: inline-flex !important;
+	align-items: center;
+	gap: 5px;
+	text-decoration: none;
+}
+
+.rest-radar-reset-button .dashicons {
+	width: 16px;
+	height: 16px;
+	font-size: 16px;
+	line-height: 1.35;
+}
+
+.rest-radar-cards {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(120px, 1fr));
+	gap: 14px;
+	margin: 18px 0;
+}
+
+.rest-radar-card {
+	position: relative;
+	overflow: hidden;
+	padding: 17px 18px;
+	border: 1px solid var(--rr-border-soft);
+	border-radius: 16px;
+	background: var(--rr-surface);
+	box-shadow: 0 3px 16px rgba(15, 23, 42, 0.05);
+}
+
+.rest-radar-card::after {
+	content: "";
+	position: absolute;
+	top: 0;
+	right: 0;
+	width: 72px;
+	height: 72px;
+	border-radius: 0 0 0 72px;
+	background: rgba(100, 116, 139, 0.08);
+}
+
+.rest-radar-card-count {
+	font-size: 31px;
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: -0.03em;
+}
+
+.rest-radar-card-label {
+	margin-top: 7px;
+	font-size: 12px;
+	font-weight: 700;
+	letter-spacing: 0.02em;
+	text-transform: uppercase;
+	color: var(--rr-muted);
+}
+
+.rest-radar-card-critical { border-top: 4px solid var(--rr-critical); }
+.rest-radar-card-high { border-top: 4px solid var(--rr-high); }
+.rest-radar-card-medium { border-top: 4px solid #f59e0b; }
+.rest-radar-card-public { border-top: 4px solid var(--rr-public); }
+.rest-radar-card-low { border-top: 4px solid var(--rr-low); }
+.rest-radar-card-ignored { border-top: 4px solid #64748b; }
+
+.rest-radar-layout {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 340px;
+	gap: 18px;
+	align-items: start;
+}
+
+.rest-radar-main {
+	min-width: 0;
+}
+
+.rest-radar-side {
+	position: sticky;
+	top: 42px;
+	display: grid;
+	gap: 16px;
+}
+
+.rest-radar-toolbar {
+	display: grid;
+	grid-template-columns: minmax(220px, 0.45fr) minmax(0, 1fr);
+	gap: 14px;
+	align-items: center;
+	margin: 20px 0 14px;
+	padding: 14px;
+	border: 1px solid var(--rr-border);
+	border-radius: 16px;
+	background: var(--rr-surface);
+	box-shadow: 0 3px 16px rgba(15, 23, 42, 0.04);
+}
+
+.rest-radar-toolbar-title strong {
+	display: block;
+	font-size: 14px;
+}
+
+.rest-radar-toolbar-title span {
+	display: block;
+	margin-top: 4px;
+	font-size: 12px;
+	color: var(--rr-muted);
+}
+
+.rest-radar-toolbar form,
+.rest-radar-filter-form {
+	display: flex;
+	align-items: center;
+	justify-content: flex-end;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.rest-radar-toolbar input[type="search"],
+.rest-radar-toolbar select,
+.rest-radar-settings-box textarea,
+.rest-radar-protect-form input[type="text"],
+.rest-radar-protect-form select {
+	border-color: var(--rr-border);
+	border-radius: 8px;
+	box-shadow: none;
+}
+
+.rest-radar-toolbar input[type="search"] {
+	min-width: min(360px, 100%);
+}
+
+.rest-radar-table-card {
+	overflow: auto;
+	border: 1px solid var(--rr-border);
+	border-radius: 16px;
+	background: var(--rr-surface);
+	box-shadow: 0 3px 16px rgba(15, 23, 42, 0.04);
+}
+
+.rest-radar-table {
+	font-size: 12px;
+	border: 0;
+}
+
+.rest-radar-table thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	border-bottom: 1px solid var(--rr-border);
+	background: #f8fafc;
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: #475569;
+}
+
+.rest-radar-table th,
+.rest-radar-table td {
+	vertical-align: top;
+	padding: 12px 10px;
+}
+
+.rest-radar-table tbody tr:hover td {
+	background: #f8fbff;
+}
+
+.rest-radar-table code {
+	white-space: normal;
+	word-break: break-word;
+}
+
+.rest-radar-row-ignored td {
+	background: #f8fafc;
+	color: #64748b;
+}
+
+.rest-radar-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 4px 9px;
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 800;
+	line-height: 1.4;
+	background: #f1f5f9;
+	color: #334155;
+	border: 1px solid #e2e8f0;
+}
+
+.rest-radar-badge-critical {
+	background: #fef3f2;
+	color: var(--rr-critical);
+	border-color: #fecdca;
+}
+
+.rest-radar-badge-high {
+	background: #fff4ed;
+	color: var(--rr-high);
+	border-color: #fed7aa;
+}
+
+.rest-radar-badge-medium {
+	background: #fffaeb;
+	color: var(--rr-review);
+	border-color: #fedf89;
+}
+
+.rest-radar-badge-public {
+	background: #eef8ff;
+	color: var(--rr-public);
+	border-color: #b9e6fe;
+}
+
+.rest-radar-badge-low {
+	background: #ecfdf3;
+	color: var(--rr-low);
+	border-color: #abefc6;
+}
+
+.rest-radar-source,
+.rest-radar-muted,
+.rest-radar-recommendation,
+.description {
+	margin-top: 5px;
+	font-size: 12px;
+	color: var(--rr-muted);
+	word-break: break-word;
+}
+
+.rest-radar-recommendation {
+	line-height: 1.45;
+}
+
+.rest-radar-tag {
+	display: inline-flex;
+	margin: 0 3px 4px 0;
+	padding: 3px 7px;
+	border-radius: 999px;
+	background: #eff6ff;
+	border: 1px solid #bfdbfe;
+	color: #1d4ed8;
+	font-size: 11px;
+	font-weight: 750;
+}
+
+.rest-radar-ignored-label {
+	margin-top: 6px;
+	font-size: 11px;
+	font-weight: 800;
+	color: #64748b;
+}
+
+.rest-radar-settings-box,
+.rest-radar-notes {
+	padding: 16px 18px;
+	background: var(--rr-surface);
+	border: 1px solid var(--rr-border);
+	border-radius: 16px;
+	box-shadow: 0 3px 16px rgba(15, 23, 42, 0.04);
+}
+
+.rest-radar-settings-box h2,
+.rest-radar-notes h2,
+.rest-radar-settings-box h3 {
+	margin-top: 0;
+	letter-spacing: -0.02em;
+}
+
+.rest-radar-settings-box textarea {
+	width: 100%;
+	margin: 8px 0 6px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+	font-size: 12px;
+}
+
+.rest-radar-checkbox {
+	display: flex;
+	gap: 8px;
+	align-items: flex-start;
+	margin: 12px 0;
+	line-height: 1.45;
+}
+
+.rest-radar-checkbox input {
+	margin-top: 2px;
+}
+
+.rest-radar-notes {
+	margin-top: 22px;
+}
+
+.rest-radar-notes ul {
+	margin-left: 0;
+}
+
+.rest-radar-notes li {
+	padding-left: 4px;
+}
+
+.rest-radar-box-heading {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin-bottom: 4px;
+}
+
+.rest-radar-box-heading h2 {
+	margin-bottom: 0;
+}
+
+.rest-radar-detail-panel {
+	margin: 18px 0;
+	padding: 18px;
+	background: var(--rr-surface);
+	border: 1px solid var(--rr-border);
+	border-radius: 18px;
+	box-shadow: var(--rr-shadow);
+}
+
+.rest-radar-detail-heading {
+	display: flex;
+	justify-content: space-between;
+	gap: 16px;
+	align-items: flex-start;
+	border-bottom: 1px solid var(--rr-border-soft);
+	padding-bottom: 14px;
+	margin-bottom: 16px;
+}
+
+.rest-radar-detail-heading h2 {
+	margin: 0 0 7px;
+	font-size: 22px;
+	letter-spacing: -0.02em;
+}
+
+.rest-radar-detail-heading p {
+	margin: 0;
+}
+
+.rest-radar-detail-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 14px;
+}
+
+.rest-radar-detail-card {
+	padding: 15px;
+	background: #fbfdff;
+	border: 1px solid var(--rr-border-soft);
+	border-radius: 14px;
+}
+
+.rest-radar-detail-card h3 {
+	margin: 0 0 10px;
+	font-size: 14px;
+}
+
+.rest-radar-detail-card dl {
+	display: grid;
+	grid-template-columns: 160px minmax(0, 1fr);
+	gap: 8px 10px;
+	margin: 0;
+}
+
+.rest-radar-detail-card dt {
+	font-weight: 800;
+	color: #334155;
+}
+
+.rest-radar-detail-card dd {
+	margin: 0;
+	word-break: break-word;
+}
+
+.rest-radar-detail-card code {
+	white-space: normal;
+	word-break: break-word;
+}
+
+.rest-radar-qa-card,
+.rest-radar-fix-card,
+.rest-radar-shield-card {
+	position: relative;
+	overflow: hidden;
+}
+
+
+.rest-radar-qa-card,
+.rest-radar-fix-card {
+	background: #0b1733;
+	border-color: #1e3a8a;
+	box-shadow: 0 10px 24px rgba(11, 23, 51, 0.16);
+}
+
+.rest-radar-qa-card h3,
+.rest-radar-fix-card h3,
+.rest-radar-qa-card p,
+.rest-radar-fix-card p,
+.rest-radar-qa-card strong,
+.rest-radar-fix-card strong,
+.rest-radar-qa-card dt,
+.rest-radar-fix-card dt,
+.rest-radar-qa-card dd,
+.rest-radar-fix-card dd {
+	color: #e5eefc;
+}
+
+.rest-radar-qa-card .rest-radar-muted,
+.rest-radar-fix-card .rest-radar-muted,
+.rest-radar-qa-card .description,
+.rest-radar-fix-card .description {
+	color: #bfdbfe;
+}
+
+
+.rest-radar-qa-card { border-left: 5px solid var(--rr-primary); }
+.rest-radar-fix-card { border-left: 5px solid #7c3aed; }
+.rest-radar-shield-card { border-left: 5px solid #f59e0b; }
+.rest-radar-shield-box { border-left: 5px solid var(--rr-primary); }
+
+.rest-radar-snippet-code {
+	min-height: 250px;
+	max-height: 320px;
+	margin: 0;
+	padding: 14px 16px;
+	overflow: auto;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+	font-size: 12px;
+	line-height: 1.55;
+	white-space: pre;
+	border-radius: 12px;
+	border: 1px solid #3b82f6;
+	background: #081226;
+	color: #f8fafc;
+	box-shadow: inset 0 0 0 1px rgba(96, 165, 250, 0.12);
+	tab-size: 4;
+}
+
+.rest-radar-snippet-code code {
+	display: block;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: #f8fafc;
+	font: inherit;
+	white-space: pre;
+	word-break: normal;
+	overflow-wrap: normal;
+	-webkit-text-fill-color: #f8fafc;
+}
+
+.rest-radar-snippet-code:focus {
+	border-color: #60a5fa;
+	box-shadow: 0 0 0 1px #3b82f6, 0 0 0 3px rgba(59, 130, 246, 0.18);
+	outline: none;
+}
+
+.rest-radar-snippet-code::selection,
+.rest-radar-snippet-code code::selection {
+	background: rgba(96, 165, 250, 0.35);
+	color: #ffffff;
+}
+
+.rest-radar-snippet-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 12px;
+}
+
+.rest-radar-snippet-header h3 {
+	margin-bottom: 8px;
+}
+
+.rest-radar-snippet-header p {
+	margin: 0;
+}
+
+.rest-radar-snippet-toolbar {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+	flex: 0 0 auto;
+	padding: 4px;
+	border: 1px solid rgba(147, 197, 253, 0.22);
+	border-radius: 999px;
+	background: rgba(15, 23, 42, 0.72);
+}
+
+.rest-radar-snippet-button.button {
+	min-height: 30px;
+	padding: 2px 12px;
+	border-color: rgba(147, 197, 253, 0.35);
+	border-radius: 999px;
+	background: rgba(30, 58, 138, 0.42);
+	color: #f8fafc;
+	font-weight: 700;
+	box-shadow: none;
+}
+
+.rest-radar-snippet-button.button:hover,
+.rest-radar-snippet-button.button:focus {
+	border-color: #93c5fd;
+	background: rgba(37, 99, 235, 0.72);
+	color: #ffffff;
+}
+
+.rest-radar-snippet-area.rest-radar-snippet-expanded {
+	min-height: 560px;
+	max-height: 70vh;
+}
+
+@media (max-width: 782px) {
+	.rest-radar-snippet-header {
+		flex-direction: column;
+	}
+
+	.rest-radar-snippet-toolbar {
+		width: 100%;
+		justify-content: flex-start;
+		border-radius: 14px;
+	}
+}
+
+.rest-radar-probe-result {
+	margin-top: 14px;
+	padding: 13px;
+	background: var(--rr-surface);
+	border: 1px solid var(--rr-border);
+	border-radius: 12px;
+}
+
+.rest-radar-probe-ok { border-left: 5px solid var(--rr-low); }
+.rest-radar-probe-warning { border-left: 5px solid #f59e0b; }
+.rest-radar-probe-error { border-left: 5px solid var(--rr-high); }
+
+.rest-radar-probe-result h4 {
+	margin: 0 0 8px;
+}
+
+.rest-radar-probe-result pre {
+	max-height: 260px;
+	overflow: auto;
+	padding: 12px;
+	border-radius: 10px;
+	background: #0f172a;
+	color: #e2e8f0;
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.rest-radar-table .button-small {
+	margin: 0 4px 4px 0;
+	border-radius: 7px;
+}
+
+.rest-radar-protect-form input[type="text"],
+.rest-radar-protect-form select {
+	width: 100%;
+	max-width: 100%;
+	margin: 5px 0 10px;
+}
+
+.rest-radar-protect-form label {
+	display: block;
+	margin-top: 8px;
+}
+
+.rest-radar-rule-list,
+.rest-radar-log-list {
+	display: grid;
+	gap: 10px;
+	margin: 10px 0;
+}
+
+.rest-radar-rule-card,
+.rest-radar-log-row {
+	background: #fbfdff;
+	border: 1px solid var(--rr-border-soft);
+	border-radius: 12px;
+	padding: 11px;
+}
+
+.rest-radar-rule-card form {
+	margin-top: 8px;
+}
+
+/* Dashboard widget */
+.rest-radar-dashboard {
+	font-size: 13px;
+}
+
+.rest-radar-dashboard-status {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	gap: 10px;
+	margin-bottom: 12px;
+}
+
+.rest-radar-dashboard-status p {
+	margin: 4px 0 0;
+}
+
+.rest-radar-dashboard-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 8px;
+	margin: 12px 0;
+}
+
+.rest-radar-dashboard-metric {
+	padding: 10px 9px;
+	border: 1px solid var(--rr-border-soft, #e2e8f0);
+	border-top: 4px solid #64748b;
+	border-radius: 12px;
+	background: #fff;
+}
+
+.rest-radar-dashboard-metric span {
+	display: block;
+	font-size: 22px;
+	font-weight: 800;
+	line-height: 1;
+	letter-spacing: -0.03em;
+}
+
+.rest-radar-dashboard-metric small {
+	display: block;
+	margin-top: 5px;
+	color: #64748b;
+}
+
+.rest-radar-dashboard-metric-critical { border-top-color: var(--rr-critical, #b42318); }
+.rest-radar-dashboard-metric-high { border-top-color: var(--rr-high, #d92d20); }
+.rest-radar-dashboard-metric-medium { border-top-color: #f59e0b; }
+.rest-radar-dashboard-metric-total { border-top-color: var(--rr-primary, #2563eb); }
+
+.rest-radar-dashboard-meta {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	margin: 10px 0 14px;
+	color: #475569;
+}
+
+.rest-radar-dashboard h4 {
+	margin: 12px 0 8px;
+}
+
+.rest-radar-dashboard-list {
+	margin: 0 0 12px;
+}
+
+.rest-radar-dashboard-list li {
+	margin: 0 0 9px;
+	padding-bottom: 8px;
+	border-bottom: 1px solid #eef2f7;
+}
+
+.rest-radar-dashboard-list code {
+	word-break: break-word;
+}
+
+.rest-radar-dashboard-good {
+	margin: 10px 0;
+	padding: 10px 11px;
+	border-left: 5px solid #027a48;
+	border-radius: 10px;
+	background: #ecfdf3;
+}
+
+.rest-radar-dashboard-latest {
+	margin: 10px 0;
+	padding: 9px 10px;
+	background: #f8fafc;
+	border: 1px solid #e2e8f0;
+	border-radius: 10px;
+}
+
+.rest-radar-dashboard-actions {
+	display: flex;
+	gap: 8px;
+	flex-wrap: wrap;
+	margin: 12px 0 0;
+}
+
+@media (max-width: 1280px) {
+	.rest-radar-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.rest-radar-side {
+		position: static;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 960px) {
+	.rest-radar-hero,
+	.rest-radar-detail-heading {
+		flex-direction: column;
+		align-items: stretch;
+	}
+
+	.rest-radar-hero-actions {
+		justify-content: flex-start;
+	}
+
+	.rest-radar-cards {
+		grid-template-columns: repeat(2, minmax(120px, 1fr));
+	}
+
+	.rest-radar-toolbar {
+		grid-template-columns: 1fr;
+	}
+
+	.rest-radar-toolbar form,
+	.rest-radar-filter-form {
+		justify-content: flex-start;
+	}
+
+	.rest-radar-toolbar input[type="search"] {
+		min-width: 100%;
+	}
+
+	.rest-radar-detail-grid,
+	.rest-radar-side {
+		grid-template-columns: 1fr;
+	}
+
+	.rest-radar-detail-card dl {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 782px) {
+	.rest-radar-dashboard-grid,
+	.rest-radar-dashboard-meta {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.rest-radar-hero,
+	.rest-radar-detail-panel,
+	.rest-radar-toolbar,
+	.rest-radar-settings-box,
+	.rest-radar-notes {
+		border-radius: 12px;
+	}
+}
+
+
+/* Risk explanation */
+.rest-radar-risk-explanation-card {
+	border-left: 5px solid #0ea5e9;
+}
+
+.rest-radar-risk-columns {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+	margin-top: 12px;
+}
+
+.rest-radar-risk-columns h4 {
+	margin: 0 0 8px;
+}
+
+.rest-radar-risk-columns ul {
+	margin: 0;
+	padding-left: 18px;
+}
+
+.rest-radar-risk-columns li {
+	margin-bottom: 6px;
+}
+
+/* Snapshots */
+.rest-radar-snapshot-box {
+	border-left: 5px solid #0ea5e9;
+}
+
+.rest-radar-snapshot-create-form,
+.rest-radar-snapshot-compare-form {
+	display: grid;
+	gap: 8px;
+	margin: 10px 0 14px;
+}
+
+.rest-radar-snapshot-create-form input[type="text"],
+.rest-radar-snapshot-compare-form select {
+	width: 100%;
+	max-width: 100%;
+	border-color: var(--rr-border);
+	border-radius: 8px;
+	box-shadow: none;
+}
+
+.rest-radar-snapshot-list {
+	display: grid;
+	gap: 10px;
+	margin: 10px 0;
+}
+
+.rest-radar-snapshot-item {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 10px;
+	border: 1px solid var(--rr-border-soft);
+	border-radius: 12px;
+	background: #fbfdff;
+}
+
+.rest-radar-clear-snapshots-form {
+	margin-top: 10px;
+}
+
+.rest-radar-compare-panel {
+	margin: 18px 0;
+	padding: 18px;
+	border: 1px solid var(--rr-border);
+	border-radius: 18px;
+	background:
+		radial-gradient(circle at 0 0, rgba(14, 165, 233, 0.12), transparent 32%),
+		linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+	box-shadow: var(--rr-shadow);
+}
+
+.rest-radar-compare-heading {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+	margin-bottom: 14px;
+}
+
+.rest-radar-compare-heading h2 {
+	margin: 3px 0 6px;
+}
+
+.rest-radar-compare-grid {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 12px;
+	margin-bottom: 16px;
+}
+
+.rest-radar-compare-metric {
+	padding: 14px;
+	border-radius: 14px;
+	border: 1px solid var(--rr-border-soft);
+	background: #ffffff;
+}
+
+.rest-radar-compare-metric span {
+	display: block;
+	font-size: 26px;
+	font-weight: 850;
+	line-height: 1;
+	color: #0f172a;
+}
+
+.rest-radar-compare-metric small {
+	display: block;
+	margin-top: 6px;
+	font-weight: 750;
+	color: var(--rr-muted);
+}
+
+.rest-radar-compare-metric-critical { border-left: 5px solid var(--rr-critical); }
+.rest-radar-compare-metric-high { border-left: 5px solid var(--rr-high); }
+.rest-radar-compare-metric-medium { border-left: 5px solid var(--rr-review); }
+.rest-radar-compare-metric-public { border-left: 5px solid var(--rr-public); }
+.rest-radar-compare-metric-low { border-left: 5px solid var(--rr-low); }
+
+.rest-radar-compare-section {
+	margin-top: 16px;
+}
+
+.rest-radar-compare-section h3 {
+	margin: 0 0 8px;
+}
+
+.rest-radar-compare-section table {
+	border-radius: 12px;
+	overflow: hidden;
+}
+
+.rest-radar-compare-section td,
+.rest-radar-compare-section th {
+	vertical-align: top;
+}
+
+@media (max-width: 1100px) {
+	.rest-radar-compare-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+
+	.rest-radar-risk-columns {
+		grid-template-columns: 1fr;
+	}
+}
+
