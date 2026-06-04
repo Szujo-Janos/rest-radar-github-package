@@ -1,3 +1,14 @@
+## 0.8.0
+
+- Added `uninstall.php` with optional cleanup behavior.
+- Added an admin setting to remove REST Radar settings, Shield rules/logs, and snapshots when the plugin is deleted.
+- Added safer Endpoint Shield controls.
+- Auto Safe Mode now requires explicit confirmation before it can be enabled.
+- WordPress core route protection now requires a separate confirmation.
+- Added persistent admin warnings when Endpoint Shield, Auto Safe Mode, or core route protection is active.
+- Enforced safe defaults: Shield OFF, Auto Safe Mode OFF, core route protection OFF.
+- Kept all previous endpoint scanning, QA report, Shield, dashboard, snapshot/compare, export, and UI features.
+
 ## 0.7.0
 
 - Replaced snippet/draft textareas with stable dark `<pre><code>` blocks.

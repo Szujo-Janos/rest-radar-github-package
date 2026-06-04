@@ -54,7 +54,7 @@ class Rest_Radar_Shield {
 		$options = wp_parse_args( $options, $defaults );
 		$options['enabled']        = ! empty( $options['enabled'] );
 		$options['auto_safe_mode'] = ! empty( $options['auto_safe_mode'] );
-		$options['include_core']   = ! empty( $options['include_core'] );
+		$options['include_core']   = ! empty( $options['auto_safe_mode'] ) && ! empty( $options['include_core'] );
 		$options['log_enabled']    = ! empty( $options['log_enabled'] );
 		$options['rules']          = self::sanitize_rules( is_array( $options['rules'] ) ? $options['rules'] : array() );
 
@@ -71,7 +71,7 @@ class Rest_Radar_Shield {
 		$options = self::get_options();
 		$options['enabled']        = ! empty( $settings['enabled'] );
 		$options['auto_safe_mode'] = ! empty( $settings['auto_safe_mode'] );
-		$options['include_core']   = ! empty( $settings['include_core'] );
+		$options['include_core']   = ! empty( $settings['auto_safe_mode'] ) && ! empty( $settings['include_core'] );
 		$options['log_enabled']    = ! empty( $settings['log_enabled'] );
 
 		update_option( self::OPTION_NAME, $options, false );

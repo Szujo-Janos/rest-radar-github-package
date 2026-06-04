@@ -336,6 +336,36 @@ class Rest_Radar_Plugin {
 				</div>
 			<?php endif; ?>
 
+			<?php if ( isset( $_GET['rest_radar_auto_confirm_required'] ) ) : ?>
+				<div class="notice notice-warning is-dismissible">
+					<p><?php echo esc_html__( 'Auto Safe Mode was not enabled because the explicit confirmation checkbox was not selected.', 'rest-radar' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( isset( $_GET['rest_radar_core_confirm_required'] ) ) : ?>
+				<div class="notice notice-error is-dismissible">
+					<p><?php echo esc_html__( 'Core route protection was not enabled because it requires a separate confirmation. This can affect the editor, admin screens, and WordPress integrations.', 'rest-radar' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $shield_options['enabled'] ) ) : ?>
+				<div class="notice notice-warning inline">
+					<p><strong><?php echo esc_html__( 'Endpoint Shield is active.', 'rest-radar' ); ?></strong> <?php echo esc_html__( 'Test rules on staging first. A broad rule can block legitimate REST API traffic.', 'rest-radar' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $shield_options['auto_safe_mode'] ) ) : ?>
+				<div class="notice notice-warning inline">
+					<p><strong><?php echo esc_html__( 'Auto Safe Mode is active.', 'rest-radar' ); ?></strong> <?php echo esc_html__( 'REST Radar may automatically block critical/high custom endpoints for non-admin users.', 'rest-radar' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( ! empty( $shield_options['include_core'] ) ) : ?>
+				<div class="notice notice-error inline">
+					<p><strong><?php echo esc_html__( 'Core route protection is enabled.', 'rest-radar' ); ?></strong> <?php echo esc_html__( 'Use this only for controlled testing because blocking WordPress core REST routes may affect admin and editor functionality.', 'rest-radar' ); ?></p>
+				</div>
+			<?php endif; ?>
+
 			<?php if ( isset( $_GET['rest_radar_shield_added'] ) ) : ?>
 				<div class="notice notice-success is-dismissible">
 					<p><?php echo esc_html__( 'Endpoint Shield rule added.', 'rest-radar' ); ?></p>
@@ -524,6 +554,17 @@ class Rest_Radar_Plugin {
 						<label for="rest-radar-ignored-patterns"><strong><?php echo esc_html__( 'Ignored route patterns', 'rest-radar' ); ?></strong></label>
 						<textarea id="rest-radar-ignored-patterns" name="ignored_patterns" rows="9" placeholder="/wp/v2/*&#10;/contact-form-7/*"><?php echo esc_textarea( implode( "\n", $options['ignored_patterns'] ) ); ?></textarea>
 						<p class="description"><?php echo esc_html__( 'One pattern per line. It matches route, namespace, callback, and source label.', 'rest-radar' ); ?></p>
+
+						<hr />
+
+						<h3><?php echo esc_html__( 'Uninstall cleanup', 'rest-radar' ); ?></h3>
+						<label class="rest-radar-checkbox">
+							<input type="checkbox" name="cleanup_on_uninstall" value="1" <?php checked( ! empty( $options['cleanup_on_uninstall'] ) ); ?> />
+							<span>
+								<strong><?php echo esc_html__( 'Remove REST Radar data when the plugin is deleted', 'rest-radar' ); ?></strong><br />
+								<span class="description"><?php echo esc_html__( 'Deletes settings, Shield rules/logs, and snapshots during uninstall. Leave unchecked if you want to keep audit evidence after removing the plugin.', 'rest-radar' ); ?></span>
+							</span>
+						</label>
 
 						<button type="submit" class="button button-primary"><?php echo esc_html__( 'Save settings', 'rest-radar' ); ?></button>
 					</form>
@@ -1438,9 +1479,10 @@ class Rest_Radar_Plugin {
 	 */
 	private function get_options() {
 		$defaults = array(
-			'ignored_patterns' => array(),
-			'hide_ignored'      => false,
-			'hide_core_public'  => true,
+			'ignored_patterns'      => array(),
+			'hide_ignored'          => false,
+			'hide_core_public'      => true,
+			'cleanup_on_uninstall'  => false,
 		);
 
 		$options = get_option( self::OPTION_NAME, array() );
@@ -1453,9 +1495,10 @@ class Rest_Radar_Plugin {
 			$options['ignored_patterns'] = array();
 		}
 
-		$options['ignored_patterns'] = array_values( array_filter( array_map( 'sanitize_text_field', $options['ignored_patterns'] ) ) );
-		$options['hide_ignored']     = ! empty( $options['hide_ignored'] );
-		$options['hide_core_public'] = ! empty( $options['hide_core_public'] );
+		$options['ignored_patterns']     = array_values( array_filter( array_map( 'sanitize_text_field', $options['ignored_patterns'] ) ) );
+		$options['hide_ignored']         = ! empty( $options['hide_ignored'] );
+		$options['hide_core_public']     = ! empty( $options['hide_core_public'] );
+		$options['cleanup_on_uninstall'] = ! empty( $options['cleanup_on_uninstall'] );
 
 		return $options;
 	}
@@ -1487,9 +1530,10 @@ class Rest_Radar_Plugin {
 		update_option(
 			self::OPTION_NAME,
 			array(
-				'ignored_patterns' => $patterns,
-				'hide_ignored'      => ! empty( $_POST['hide_ignored'] ),
-				'hide_core_public'  => ! empty( $_POST['hide_core_public'] ),
+				'ignored_patterns'      => $patterns,
+				'hide_ignored'          => ! empty( $_POST['hide_ignored'] ),
+				'hide_core_public'      => ! empty( $_POST['hide_core_public'] ),
+				'cleanup_on_uninstall'  => ! empty( $_POST['cleanup_on_uninstall'] ),
 			),
 			false
 		);
@@ -1977,23 +2021,47 @@ class Rest_Radar_Plugin {
 			</div>
 			<p><?php echo esc_html__( 'Non-destructive mitigation layer. It does not edit third-party plugin files; it blocks matching REST requests before callbacks run.', 'rest-radar' ); ?></p>
 
+			<div class="rest-radar-safety-callout">
+				<strong><?php echo esc_html__( 'Safe defaults are enforced.', 'rest-radar' ); ?></strong>
+				<p><?php echo esc_html__( 'Endpoint Shield and Auto Safe Mode are OFF by default. Auto blocking requires explicit confirmation, and WordPress core route protection requires a separate confirmation.', 'rest-radar' ); ?></p>
+			</div>
+
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 				<input type="hidden" name="action" value="rest_radar_save_shield_settings" />
 				<?php wp_nonce_field( 'rest_radar_save_shield_settings' ); ?>
 
 				<label class="rest-radar-checkbox">
 					<input type="checkbox" name="enabled" value="1" <?php checked( ! empty( $shield_options['enabled'] ) ); ?> />
-					<?php echo esc_html__( 'Enable Endpoint Shield', 'rest-radar' ); ?>
+					<span>
+						<strong><?php echo esc_html__( 'Enable Endpoint Shield', 'rest-radar' ); ?></strong><br />
+						<span class="description"><?php echo esc_html__( 'Manual rules can block matching REST requests. Test rules on staging before using them on production.', 'rest-radar' ); ?></span>
+					</span>
 				</label>
 
 				<label class="rest-radar-checkbox">
 					<input type="checkbox" name="auto_safe_mode" value="1" <?php checked( ! empty( $shield_options['auto_safe_mode'] ) ); ?> />
-					<?php echo esc_html__( 'Auto Safe Mode: block critical/high custom endpoints for non-admin users', 'rest-radar' ); ?>
+					<span>
+						<strong><?php echo esc_html__( 'Auto Safe Mode: block critical/high custom endpoints for non-admin users', 'rest-radar' ); ?></strong><br />
+						<span class="description"><?php echo esc_html__( 'Auto Safe Mode is disabled unless the confirmation checkbox below is also selected.', 'rest-radar' ); ?></span>
+					</span>
+				</label>
+
+				<label class="rest-radar-checkbox rest-radar-confirm-checkbox">
+					<input type="checkbox" name="auto_safe_mode_confirm" value="1" <?php checked( ! empty( $shield_options['auto_safe_mode'] ) ); ?> />
+					<span><?php echo esc_html__( 'I understand Auto Safe Mode may block legitimate plugin endpoints and I have tested this on staging.', 'rest-radar' ); ?></span>
 				</label>
 
 				<label class="rest-radar-checkbox">
 					<input type="checkbox" name="include_core" value="1" <?php checked( ! empty( $shield_options['include_core'] ) ); ?> />
-					<?php echo esc_html__( 'Allow Auto Safe Mode to affect WordPress core routes', 'rest-radar' ); ?>
+					<span>
+						<strong><?php echo esc_html__( 'Allow Auto Safe Mode to affect WordPress core routes', 'rest-radar' ); ?></strong><br />
+						<span class="description"><?php echo esc_html__( 'This is risky and is intended only for controlled testing or advanced review.', 'rest-radar' ); ?></span>
+					</span>
+				</label>
+
+				<label class="rest-radar-checkbox rest-radar-confirm-checkbox">
+					<input type="checkbox" name="include_core_confirm" value="1" <?php checked( ! empty( $shield_options['include_core'] ) ); ?> />
+					<span><?php echo esc_html__( 'I understand core route protection may affect the editor, admin screens, mobile apps, and integrations.', 'rest-radar' ); ?></span>
 				</label>
 
 				<label class="rest-radar-checkbox">
@@ -2067,16 +2135,35 @@ class Rest_Radar_Plugin {
 
 		check_admin_referer( 'rest_radar_save_shield_settings' );
 
+		$auto_requested   = ! empty( $_POST['auto_safe_mode'] );
+		$auto_confirmed   = ! empty( $_POST['auto_safe_mode_confirm'] );
+		$core_requested   = ! empty( $_POST['include_core'] );
+		$core_confirmed   = ! empty( $_POST['include_core_confirm'] );
+		$auto_safe_mode   = $auto_requested && $auto_confirmed;
+		$include_core     = $auto_safe_mode && $core_requested && $core_confirmed;
+
 		Rest_Radar_Shield::save_settings(
 			array(
 				'enabled'        => ! empty( $_POST['enabled'] ),
-				'auto_safe_mode' => ! empty( $_POST['auto_safe_mode'] ),
-				'include_core'   => ! empty( $_POST['include_core'] ),
+				'auto_safe_mode' => $auto_safe_mode,
+				'include_core'   => $include_core,
 				'log_enabled'    => ! empty( $_POST['log_enabled'] ),
 			)
 		);
 
-		wp_safe_redirect( add_query_arg( 'rest_radar_shield_updated', '1', admin_url( 'tools.php?page=rest-radar' ) ) );
+		$redirect_args = array(
+			'rest_radar_shield_updated' => '1',
+		);
+
+		if ( $auto_requested && ! $auto_confirmed ) {
+			$redirect_args['rest_radar_auto_confirm_required'] = '1';
+		}
+
+		if ( $core_requested && ! $core_confirmed ) {
+			$redirect_args['rest_radar_core_confirm_required'] = '1';
+		}
+
+		wp_safe_redirect( add_query_arg( $redirect_args, admin_url( 'tools.php?page=rest-radar' ) ) );
 		exit;
 	}
 

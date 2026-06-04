@@ -1051,3 +1051,26 @@
 	}
 }
 
+
+
+.rest-radar-safety-callout {
+	margin: 12px 0 14px;
+	padding: 12px 14px;
+	border: 1px solid #fed7aa;
+	border-left: 5px solid #f59e0b;
+	border-radius: 12px;
+	background: #fff7ed;
+	color: #7c2d12;
+}
+
+.rest-radar-safety-callout p {
+	margin: 6px 0 0;
+	color: #7c2d12;
+}
+
+.rest-radar-confirm-checkbox {
+	margin-left: 24px;
+	padding: 8px 10px;
+	border-radius: 10px;
+	background: #f8fafc;
+}

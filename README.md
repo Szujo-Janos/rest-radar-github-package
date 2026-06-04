@@ -1,6 +1,6 @@
 # REST Radar – Endpoint Inspector
 
-**REST Radar** is a WordPress REST API inspection, QA reporting, and regression review plugin.
+**REST Radar** is a WordPress REST API inspection, QA reporting, endpoint protection, and regression review plugin.
 
 It helps WordPress developers, QA testers, and site maintainers inspect registered REST API endpoints, identify risky access patterns, generate QA-ready reports, compare endpoint changes after updates, and apply non-destructive protective rules through Endpoint Shield.
 
@@ -15,8 +15,9 @@ REST Radar scans the registered REST API routes of a WordPress site and displays
 - Source detection: WordPress core, plugin, theme, MU plugin, or unknown
 - Risk level
 - Recommended review action
+- Risk explanation and manual QA notes
 
-The goal is to make the WordPress REST API surface visible, reviewable, and easier to document.
+The goal is to make the WordPress REST API surface visible, reviewable, testable, and easier to document.
 
 ## Main use cases
 
@@ -46,6 +47,8 @@ The goal is to make the WordPress REST API surface visible, reviewable, and easi
 - Compare snapshots before and after plugin/theme updates
 - Detect new, removed, or changed endpoints
 - Dashboard widget with quick endpoint risk summary
+- Optional uninstall cleanup
+- Safer Shield / Auto Safe Mode confirmation flow
 
 ## Endpoint Shield
 
@@ -60,6 +63,17 @@ Supported protection modes:
 - Disable route completely
 
 This is intended as a temporary mitigation or review aid, not as a replacement for fixing the source code.
+
+## Safe defaults
+
+REST Radar uses safe defaults:
+
+- Endpoint Shield is OFF by default
+- Auto Safe Mode is OFF by default
+- WordPress core route protection is OFF by default
+- Auto Safe Mode requires explicit confirmation
+- WordPress core route protection requires separate confirmation
+- Admin warnings appear when Shield, Auto Safe Mode, or core route protection is active
 
 ## Snapshot / Compare mode
 
@@ -130,7 +144,7 @@ REST Radar is a review and mitigation tool, not a replacement for a professional
 
 ## Version
 
-Current package version: **0.7.0**
+Current package version: **0.8.0**
 
 ## Author
 

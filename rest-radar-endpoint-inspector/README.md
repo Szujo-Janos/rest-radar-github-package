@@ -84,4 +84,16 @@ Adds a WordPress Dashboard widget with a compact REST Radar summary: total route
 - No destructive behaviour changes; this is a cumulative UI/UX refinement release.
 
 
-Current version: 0.7.0
+Current version: 0.8.0
+
+
+## 0.8.0 Stabilization
+
+This release adds safer production behavior:
+
+- Optional uninstall cleanup setting
+- `uninstall.php` support
+- Explicit confirmation required for Auto Safe Mode
+- Separate confirmation required for WordPress core route protection
+- Admin warnings when Shield or Auto Safe Mode is active
+- Safe defaults remain enforced

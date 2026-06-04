@@ -1,6 +1,6 @@
 # REST Radar – Endpoint Inspector
 
-A **REST Radar** egy WordPress REST API ellenőrző, QA riportoló és regressziós összehasonlító plugin.
+A **REST Radar** egy WordPress REST API ellenőrző, QA riportoló, endpoint-védelmi és regressziós összehasonlító plugin.
 
 Segít átnézni, hogy egy WordPress oldalon milyen REST API endpointok vannak regisztrálva, ezek közül melyek lehetnek kockázatosak, miért azok, és hogyan lehet őket dokumentálni vagy ideiglenesen védeni.
 
@@ -10,12 +10,15 @@ Segít átnézni, hogy egy WordPress oldalon milyen REST API endpointok vannak r
 - jogosultsági problémák felismerése
 - hiányzó vagy gyenge `permission_callback` jelzése
 - kockázati szintek megjelenítése
+- risk explanation / magyarázat
 - QA hibajegy-vázlat generálása
 - fejlesztői javítási kódrészlet javaslata
 - biztonságos GET probe
 - CSV és Markdown riport export
 - Endpoint Shield szabályok létrehozása
 - snapshot mentés és frissítés előtti/utáni összehasonlítás
+- biztonságosabb Auto Safe Mode megerősítési logika
+- opcionális uninstall cleanup
 
 ## Kinek hasznos?
 

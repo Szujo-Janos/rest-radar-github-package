@@ -34,12 +34,17 @@
 
 ## Shield
 
+- [ ] Shield is OFF by default
+- [ ] Auto Safe Mode is OFF by default
+- [ ] Core route protection is OFF by default
 - [ ] Add shield rule works
 - [ ] Duplicate shield rules are not created
 - [ ] Shield can block selected endpoint
 - [ ] Block log appears
 - [ ] Delete shield rule works
 - [ ] Clear logs works
+- [ ] Auto Safe Mode requires confirmation
+- [ ] Core route protection requires separate confirmation
 
 ## Snapshot / Compare
 
@@ -52,6 +57,13 @@
 - [ ] Permission callback changes are detected
 - [ ] Snapshot delete works
 - [ ] Clear all snapshots works
+
+## Uninstall
+
+- [ ] Cleanup option is visible
+- [ ] Cleanup option remains OFF unless manually enabled
+- [ ] With cleanup OFF, audit data is preserved after plugin deletion
+- [ ] With cleanup ON, plugin options/snapshots/logs are removed during uninstall
 
 ## Exports
 

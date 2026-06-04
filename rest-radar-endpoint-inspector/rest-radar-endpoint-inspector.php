@@ -3,7 +3,7 @@
  * Plugin Name: REST Radar - Endpoint Inspector
  * Plugin URI:  https://github.com/Szujo-Janos
  * Description: REST API endpoint inspector and non-destructive shield for WordPress. Lists risky routes, exports QA-ready findings, and can apply protective endpoint rules.
- * Version:     0.7.0
+ * Version:     0.8.0
  * Author:      Szujó János
  * Author URI:  https://github.com/Szujo-Janos
  * License:     GPL-2.0-or-later
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'REST_RADAR_VERSION', '0.7.0' );
+define( 'REST_RADAR_VERSION', '0.8.0' );
 define( 'REST_RADAR_FILE', __FILE__ );
 define( 'REST_RADAR_PATH', plugin_dir_path( __FILE__ ) );
 define( 'REST_RADAR_URL', plugin_dir_url( __FILE__ ) );
