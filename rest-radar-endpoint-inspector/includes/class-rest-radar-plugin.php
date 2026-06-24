@@ -24,6 +24,26 @@ class Rest_Radar_Plugin {
 	const SNAPSHOT_OPTION_NAME = 'rest_radar_snapshots';
 
 	/**
+	 * Option name for endpoint review decisions.
+	 */
+	const REVIEW_OPTION_NAME = 'rest_radar_endpoint_reviews';
+
+	/**
+	 * Maximum number of snapshots stored in wp_options.
+	 */
+	const MAX_SNAPSHOTS = 8;
+
+	/**
+	 * Maximum endpoint rows stored per snapshot.
+	 */
+	const MAX_SNAPSHOT_ROWS = 1000;
+
+	/**
+	 * Soft guard for serialized snapshot option payload size.
+	 */
+	const MAX_SNAPSHOT_OPTION_BYTES = 768000;
+
+	/**
 	 * Singleton instance.
 	 *
 	 * @var Rest_Radar_Plugin|null
@@ -54,6 +74,7 @@ class Rest_Radar_Plugin {
 		add_action( 'admin_post_rest_radar_export_markdown', array( $this, 'export_markdown' ) );
 		add_action( 'admin_post_rest_radar_save_settings', array( $this, 'save_settings' ) );
 		add_action( 'admin_post_rest_radar_save_shield_settings', array( $this, 'save_shield_settings' ) );
+		add_action( 'admin_post_rest_radar_save_endpoint_review', array( $this, 'save_endpoint_review' ) );
 		add_action( 'admin_post_rest_radar_add_shield_rule', array( $this, 'add_shield_rule' ) );
 		add_action( 'admin_post_rest_radar_delete_shield_rule', array( $this, 'delete_shield_rule' ) );
 		add_action( 'admin_post_rest_radar_clear_shield_logs', array( $this, 'clear_shield_logs' ) );
@@ -150,6 +171,8 @@ class Rest_Radar_Plugin {
 				<?php $this->render_dashboard_metric( __( 'Critical', 'rest-radar' ), $stats['critical'] ?? 0, 'critical' ); ?>
 				<?php $this->render_dashboard_metric( __( 'High', 'rest-radar' ), $stats['high'] ?? 0, 'high' ); ?>
 				<?php $this->render_dashboard_metric( __( 'Review', 'rest-radar' ), $stats['medium'] ?? 0, 'medium' ); ?>
+				<?php $this->render_dashboard_metric( __( 'Fix required', 'rest-radar' ), $stats['review_fix_required'] ?? 0, 'review-fix' ); ?>
+				<?php $this->render_dashboard_metric( __( 'Retest', 'rest-radar' ), $stats['review_retest_required'] ?? 0, 'review-retest' ); ?>
 			</div>
 
 			<div class="rest-radar-dashboard-meta">
@@ -268,7 +291,8 @@ class Rest_Radar_Plugin {
 		$risk_filter   = isset( $_GET['risk'] ) ? sanitize_key( wp_unslash( $_GET['risk'] ) ) : '';
 		$source_filter = isset( $_GET['source'] ) ? sanitize_key( wp_unslash( $_GET['source'] ) ) : '';
 		$search_filter = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
-		$filtered_rows = $this->filter_rows( $prepared_rows, $risk_filter, $source_filter, $search_filter, $options );
+		$review_filter = isset( $_GET['review'] ) ? sanitize_key( wp_unslash( $_GET['review'] ) ) : '';
+		$filtered_rows = $this->filter_rows( $prepared_rows, $risk_filter, $source_filter, $search_filter, $review_filter, $options );
 		$stats         = $this->build_stats( $prepared_rows );
 		$snapshots     = $this->get_snapshots();
 		$snapshot_a    = isset( $_GET['rr_snap_a'] ) ? sanitize_key( wp_unslash( $_GET['rr_snap_a'] ) ) : '';
@@ -283,7 +307,7 @@ class Rest_Radar_Plugin {
 			'rest_radar_export_markdown'
 		);
 
-		foreach ( array( 'risk' => $risk_filter, 'source' => $source_filter, 's' => $search_filter ) as $key => $value ) {
+		foreach ( array( 'risk' => $risk_filter, 'source' => $source_filter, 's' => $search_filter, 'review' => $review_filter ) as $key => $value ) {
 			if ( '' !== $value ) {
 				$export_url   = add_query_arg( $key, rawurlencode( $value ), $export_url );
 				$markdown_url = add_query_arg( $key, rawurlencode( $value ), $markdown_url );
@@ -390,6 +414,12 @@ class Rest_Radar_Plugin {
 				</div>
 			<?php endif; ?>
 
+			<?php if ( isset( $_GET['rest_radar_snapshot_limited'] ) ) : ?>
+				<div class="notice notice-warning is-dismissible">
+					<p><?php echo esc_html__( 'Snapshot storage was limited to protect wp_options size. Older snapshots or excessive endpoint rows may have been trimmed.', 'rest-radar' ); ?></p>
+				</div>
+			<?php endif; ?>
+
 			<?php if ( isset( $_GET['rest_radar_snapshot_deleted'] ) ) : ?>
 				<div class="notice notice-success is-dismissible">
 					<p><?php echo esc_html__( 'REST Radar snapshot deleted.', 'rest-radar' ); ?></p>
@@ -399,6 +429,18 @@ class Rest_Radar_Plugin {
 			<?php if ( isset( $_GET['rest_radar_snapshots_cleared'] ) ) : ?>
 				<div class="notice notice-success is-dismissible">
 					<p><?php echo esc_html__( 'REST Radar snapshots cleared.', 'rest-radar' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( isset( $_GET['rest_radar_review_saved'] ) ) : ?>
+				<div class="notice notice-success is-dismissible">
+					<p><?php echo esc_html__( 'Endpoint review decision saved.', 'rest-radar' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<?php if ( isset( $_GET['rest_radar_review_note_required'] ) ) : ?>
+				<div class="notice notice-error is-dismissible">
+					<p><?php echo esc_html__( 'Severity override was not saved because a reviewer note is required.', 'rest-radar' ); ?></p>
 				</div>
 			<?php endif; ?>
 
@@ -412,13 +454,7 @@ class Rest_Radar_Plugin {
 				<?php $this->render_endpoint_details( $selected_row, $probe_result ); ?>
 			<?php endif; ?>
 
-			<div class="rest-radar-cards" aria-label="<?php echo esc_attr__( 'Scan summary', 'rest-radar' ); ?>">
-				<?php $this->render_stat_card( __( 'Total routes', 'rest-radar' ), count( $prepared_rows ), 'total' ); ?>
-				<?php $this->render_stat_card( __( 'Critical', 'rest-radar' ), $stats['critical'] ?? 0, 'critical' ); ?>
-				<?php $this->render_stat_card( __( 'High', 'rest-radar' ), $stats['high'] ?? 0, 'high' ); ?>
-				<?php $this->render_stat_card( __( 'Review', 'rest-radar' ), $stats['medium'] ?? 0, 'medium' ); ?>
-				<?php $this->render_stat_card( __( 'Ignored', 'rest-radar' ), $stats['ignored'] ?? 0, 'ignored' ); ?>
-			</div>
+			<?php $this->render_admin_dashboard_overview( $prepared_rows, $filtered_rows, $stats, $shield_options, $snapshots, $export_url, $markdown_url ); ?>
 
 			<?php if ( is_array( $snapshot_compare ) ) : ?>
 				<?php $this->render_snapshot_compare_panel( $snapshot_compare ); ?>
@@ -449,6 +485,17 @@ class Rest_Radar_Plugin {
 								<?php endforeach; ?>
 							</select>
 
+							<label for="rest-radar-review" class="screen-reader-text"><?php echo esc_html__( 'Review filter', 'rest-radar' ); ?></label>
+							<select id="rest-radar-review" name="review">
+								<option value=""><?php echo esc_html__( 'All review states', 'rest-radar' ); ?></option>
+								<option value="unreviewed" <?php selected( $review_filter, 'unreviewed' ); ?>><?php echo esc_html__( 'Unreviewed only', 'rest-radar' ); ?></option>
+								<option value="high_unreviewed" <?php selected( $review_filter, 'high_unreviewed' ); ?>><?php echo esc_html__( 'Critical/High + unreviewed', 'rest-radar' ); ?></option>
+								<option value="has_shield_rule" <?php selected( $review_filter, 'has_shield_rule' ); ?>><?php echo esc_html__( 'Has Shield rule', 'rest-radar' ); ?></option>
+								<?php foreach ( $this->review_statuses() as $status_key => $status_label ) : ?>
+									<option value="<?php echo esc_attr( $status_key ); ?>" <?php selected( $review_filter, $status_key ); ?>><?php echo esc_html( $status_label ); ?></option>
+								<?php endforeach; ?>
+							</select>
+
 							<label for="rest-radar-search" class="screen-reader-text"><?php echo esc_html__( 'Search endpoint', 'rest-radar' ); ?></label>
 							<input id="rest-radar-search" type="search" name="s" value="<?php echo esc_attr( $search_filter ); ?>" placeholder="<?php echo esc_attr__( 'Search route, namespace, callback...', 'rest-radar' ); ?>" />
 							<button type="submit" class="button button-secondary"><?php echo esc_html__( 'Filter', 'rest-radar' ); ?></button>
@@ -467,6 +514,7 @@ class Rest_Radar_Plugin {
 							<thead>
 								<tr>
 									<th scope="col"><?php echo esc_html__( 'Risk', 'rest-radar' ); ?></th>
+									<th scope="col"><?php echo esc_html__( 'Review', 'rest-radar' ); ?></th>
 									<th scope="col"><?php echo esc_html__( 'Actions', 'rest-radar' ); ?></th>
 									<th scope="col"><?php echo esc_html__( 'Methods', 'rest-radar' ); ?></th>
 									<th scope="col"><?php echo esc_html__( 'Source', 'rest-radar' ); ?></th>
@@ -485,6 +533,15 @@ class Rest_Radar_Plugin {
 											<?php $this->render_risk_badge( $row['risk'] ); ?>
 											<?php if ( ! empty( $row['ignored'] ) ) : ?>
 												<div class="rest-radar-ignored-label"><?php echo esc_html__( 'Ignored', 'rest-radar' ); ?></div>
+											<?php endif; ?>
+											<?php if ( ! empty( $row['review']['severity_override'] ) ) : ?>
+												<div class="rest-radar-muted"><?php echo esc_html__( 'Manual override', 'rest-radar' ); ?></div>
+											<?php endif; ?>
+										</td>
+										<td>
+											<?php $this->render_review_badge( $row['review'] ?? array() ); ?>
+											<?php if ( ! empty( $row['shield_rule_state'] ) && 'active' === $row['shield_rule_state'] ) : ?>
+												<div class="rest-radar-muted"><?php echo esc_html__( 'Shield rule active', 'rest-radar' ); ?></div>
 											<?php endif; ?>
 										</td>
 										<td><?php $this->render_row_actions( $row ); ?></td>
@@ -799,7 +856,7 @@ class Rest_Radar_Plugin {
 			}
 		);
 
-		return array_values( array_slice( $clean, 0, 12 ) );
+		return array_values( array_slice( $clean, 0, self::MAX_SNAPSHOTS ) );
 	}
 
 	/**
@@ -834,7 +891,7 @@ class Rest_Radar_Plugin {
 			);
 		}
 
-		return $clean;
+		return array_slice( $clean, 0, self::MAX_SNAPSHOT_ROWS );
 	}
 
 	/**
@@ -845,7 +902,7 @@ class Rest_Radar_Plugin {
 	 */
 	private function build_snapshot_rows( array $rows ) {
 		$compact = array();
-		foreach ( $rows as $row ) {
+		foreach ( array_slice( $rows, 0, self::MAX_SNAPSHOT_ROWS ) as $row ) {
 			$item = array(
 				'route'                     => (string) ( $row['route'] ?? '' ),
 				'methods'                   => isset( $row['methods'] ) && is_array( $row['methods'] ) ? array_values( $row['methods'] ) : array(),
@@ -1200,6 +1257,8 @@ class Rest_Radar_Plugin {
 					<?php endif; ?>
 				</div>
 
+				<?php $this->render_endpoint_review_card( $row ); ?>
+
 				<?php $this->render_risk_explanation_card( $row ); ?>
 
 				<div class="rest-radar-detail-card rest-radar-shield-card">
@@ -1269,6 +1328,74 @@ class Rest_Radar_Plugin {
 					<?php endif; ?>
 				</div>
 			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render the endpoint review decision form.
+	 *
+	 * @param array<string,mixed> $row Row.
+	 * @return void
+	 */
+	private function render_endpoint_review_card( array $row ) {
+		$review     = isset( $row['review'] ) && is_array( $row['review'] ) ? $row['review'] : array();
+		$status     = isset( $review['status'] ) ? (string) $review['status'] : 'new';
+		$override   = isset( $review['severity_override'] ) ? (string) $review['severity_override'] : '';
+		$note       = isset( $review['note'] ) ? (string) $review['note'] : '';
+		$updated_at = isset( $review['updated_at'] ) ? (string) $review['updated_at'] : '';
+		$reviewer   = isset( $review['reviewer'] ) ? (string) $review['reviewer'] : '';
+		?>
+		<div class="rest-radar-detail-card rest-radar-review-card">
+			<h3><?php echo esc_html__( 'Endpoint review decision', 'rest-radar' ); ?></h3>
+			<p><?php echo esc_html__( 'Record the human review result so scanner output becomes reusable QA evidence instead of a one-time warning list.', 'rest-radar' ); ?></p>
+
+			<div class="rest-radar-review-current">
+				<?php $this->render_review_badge( $review ); ?>
+				<?php if ( ! empty( $row['shield_rule_state'] ) && 'active' === $row['shield_rule_state'] ) : ?>
+					<span class="rest-radar-review-badge rest-radar-review-shield-rule"><?php echo esc_html__( 'Shield rule active', 'rest-radar' ); ?></span>
+				<?php endif; ?>
+			</div>
+
+			<?php if ( ! empty( $review['auto_retest'] ) ) : ?>
+				<div class="notice notice-warning inline">
+					<p><?php echo esc_html__( 'This endpoint changed after a previous review decision. Retest before trusting the old decision.', 'rest-radar' ); ?></p>
+				</div>
+			<?php endif; ?>
+
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="rest-radar-review-form">
+				<input type="hidden" name="action" value="rest_radar_save_endpoint_review" />
+				<input type="hidden" name="row_key" value="<?php echo esc_attr( $row['key'] ?? '' ); ?>" />
+				<input type="hidden" name="route" value="<?php echo esc_attr( $row['route'] ?? '' ); ?>" />
+				<input type="hidden" name="methods" value="<?php echo esc_attr( implode( ',', $row['methods'] ?? array() ) ); ?>" />
+				<input type="hidden" name="fingerprint" value="<?php echo esc_attr( $this->build_endpoint_fingerprint( $row ) ); ?>" />
+				<?php wp_nonce_field( 'rest_radar_save_endpoint_review_' . ( $row['key'] ?? '' ) ); ?>
+
+				<label for="rest-radar-review-status"><strong><?php echo esc_html__( 'Review status', 'rest-radar' ); ?></strong></label>
+				<select id="rest-radar-review-status" name="review_status">
+					<?php foreach ( $this->review_statuses() as $status_key => $status_label ) : ?>
+						<option value="<?php echo esc_attr( $status_key ); ?>" <?php selected( $status, $status_key ); ?>><?php echo esc_html( $status_label ); ?></option>
+					<?php endforeach; ?>
+				</select>
+
+				<label for="rest-radar-severity-override"><strong><?php echo esc_html__( 'Severity override', 'rest-radar' ); ?></strong></label>
+				<select id="rest-radar-severity-override" name="severity_override">
+					<option value=""><?php echo esc_html__( 'No manual override', 'rest-radar' ); ?></option>
+					<?php foreach ( $this->severity_override_options() as $severity_key => $severity_label ) : ?>
+						<option value="<?php echo esc_attr( $severity_key ); ?>" <?php selected( $override, $severity_key ); ?>><?php echo esc_html( $severity_label ); ?></option>
+					<?php endforeach; ?>
+				</select>
+				<p class="description"><?php echo esc_html__( 'A severity override requires a reviewer note. The original scanner severity is kept in exports.', 'rest-radar' ); ?></p>
+
+				<label for="rest-radar-review-note"><strong><?php echo esc_html__( 'Reviewer note', 'rest-radar' ); ?></strong></label>
+				<textarea id="rest-radar-review-note" name="review_note" rows="5" placeholder="<?php echo esc_attr__( 'Why this endpoint is accepted, false positive, shielded, or needs a fix...', 'rest-radar' ); ?>"><?php echo esc_textarea( $note ); ?></textarea>
+
+				<?php if ( $updated_at ) : ?>
+					<p class="description"><?php echo esc_html( sprintf( __( 'Last reviewed: %1$s by %2$s', 'rest-radar' ), $updated_at, $reviewer ? $reviewer : __( 'unknown reviewer', 'rest-radar' ) ) ); ?></p>
+				<?php endif; ?>
+
+				<button type="submit" class="button button-primary"><?php echo esc_html__( 'Save review decision', 'rest-radar' ); ?></button>
+			</form>
 		</div>
 		<?php
 	}
@@ -1425,6 +1552,143 @@ class Rest_Radar_Plugin {
 	}
 
 	/**
+	 * Render optimized admin dashboard overview.
+	 *
+	 * @param array<int,array<string,mixed>> $prepared_rows All prepared rows.
+	 * @param array<int,array<string,mixed>> $filtered_rows Filtered rows.
+	 * @param array<string,int>              $stats Scan statistics.
+	 * @param array<string,mixed>            $shield_options Shield options.
+	 * @param array<int,array<string,mixed>> $snapshots Saved snapshots.
+	 * @param string                         $export_url CSV export URL.
+	 * @param string                         $markdown_url Markdown export URL.
+	 * @return void
+	 */
+	private function render_admin_dashboard_overview( array $prepared_rows, array $filtered_rows, array $stats, array $shield_options, array $snapshots, $export_url, $markdown_url ) {
+		$total             = count( $prepared_rows );
+		$filtered_count    = count( $filtered_rows );
+		$critical_count    = absint( $stats['critical'] ?? 0 );
+		$high_count        = absint( $stats['high'] ?? 0 );
+		$review_count      = absint( $stats['medium'] ?? 0 );
+		$public_count      = absint( $stats['public'] ?? 0 );
+		$low_count         = absint( $stats['low'] ?? 0 );
+		$ignored_count     = absint( $stats['ignored'] ?? 0 );
+		$needs_count       = absint( $stats['review_needs_review'] ?? 0 );
+		$fix_count         = absint( $stats['review_fix_required'] ?? 0 );
+		$retest_count      = absint( $stats['review_retest_required'] ?? 0 );
+		$shielded_count    = absint( $stats['review_shielded'] ?? 0 );
+		$unreviewed_count  = absint( $stats['review_unreviewed'] ?? 0 );
+		$reviewed_count    = max( 0, $total - $unreviewed_count );
+		$review_progress   = $total > 0 ? (int) round( ( $reviewed_count / $total ) * 100 ) : 100;
+		$shield_enabled    = ! empty( $shield_options['enabled'] );
+		$rule_count        = ! empty( $shield_options['rules'] ) && is_array( $shield_options['rules'] ) ? count( $shield_options['rules'] ) : 0;
+		$snapshot_count    = count( $snapshots );
+		$latest_snapshot   = ! empty( $snapshots[0]['label'] ) ? (string) $snapshots[0]['label'] : __( 'No snapshot yet', 'rest-radar' );
+		$base_url          = admin_url( 'tools.php?page=rest-radar' );
+		$priority_rows     = array_filter(
+			$prepared_rows,
+			static function ( $row ) {
+				$level  = isset( $row['risk']['level'] ) ? (string) $row['risk']['level'] : 'low';
+				$status = isset( $row['review']['status'] ) ? (string) $row['review']['status'] : 'new';
+				return in_array( $level, array( 'critical', 'high' ), true ) || in_array( $status, array( 'fix_required', 'retest_required' ), true );
+			}
+		);
+		$priority_count    = count( $priority_rows );
+		$priority_tone     = $critical_count || $fix_count ? 'is-danger' : ( $priority_count ? 'is-warning' : 'is-good' );
+		$priority_message  = $priority_count
+			? __( 'Prioritize these before exporting or accepting the current endpoint surface.', 'rest-radar' )
+			: __( 'No critical, high, fix-required, or retest-required endpoints are currently in the priority queue.', 'rest-radar' );
+		$review_status_url = add_query_arg( 'review', 'unreviewed', $base_url );
+		$critical_url      = add_query_arg( 'risk', 'critical', $base_url );
+		$high_url          = add_query_arg( 'risk', 'high', $base_url );
+		$fix_url           = add_query_arg( 'review', 'fix_required', $base_url );
+		$retest_url        = add_query_arg( 'review', 'retest_required', $base_url );
+		$shield_url        = add_query_arg( 'review', 'has_shield_rule', $base_url );
+		?>
+		<section class="rest-radar-admin-dashboard" aria-label="<?php echo esc_attr__( 'REST Radar dashboard overview', 'rest-radar' ); ?>">
+			<div class="rest-radar-admin-dashboard-head">
+				<div>
+					<div class="rest-radar-kicker"><?php echo esc_html__( 'Operational dashboard', 'rest-radar' ); ?></div>
+					<h2><?php echo esc_html__( 'Review workload and endpoint risk at a glance', 'rest-radar' ); ?></h2>
+					<p><?php echo esc_html__( 'The dashboard now separates immediate action, review progress, Shield state, and scan scope so the next decision is visible without reading the full table first.', 'rest-radar' ); ?></p>
+				</div>
+				<div class="rest-radar-admin-dashboard-actions">
+					<a href="<?php echo esc_url( $review_status_url ); ?>" class="button button-primary"><?php echo esc_html__( 'Review queue', 'rest-radar' ); ?></a>
+					<a href="<?php echo esc_url( $export_url ); ?>" class="button button-secondary"><?php echo esc_html__( 'CSV', 'rest-radar' ); ?></a>
+					<a href="<?php echo esc_url( $markdown_url ); ?>" class="button button-secondary"><?php echo esc_html__( 'QA Markdown', 'rest-radar' ); ?></a>
+				</div>
+			</div>
+
+			<div class="rest-radar-admin-dashboard-grid">
+				<div class="rest-radar-priority-card <?php echo esc_attr( $priority_tone ); ?>">
+					<div class="rest-radar-card-eyebrow"><?php echo esc_html__( 'Priority queue', 'rest-radar' ); ?></div>
+					<div class="rest-radar-priority-number"><?php echo esc_html( (string) absint( $priority_count ) ); ?></div>
+					<p><?php echo esc_html( $priority_message ); ?></p>
+					<div class="rest-radar-priority-split">
+						<a href="<?php echo esc_url( $critical_url ); ?>"><strong><?php echo esc_html( (string) $critical_count ); ?></strong><span><?php echo esc_html__( 'Critical', 'rest-radar' ); ?></span></a>
+						<a href="<?php echo esc_url( $high_url ); ?>"><strong><?php echo esc_html( (string) $high_count ); ?></strong><span><?php echo esc_html__( 'High', 'rest-radar' ); ?></span></a>
+						<a href="<?php echo esc_url( $fix_url ); ?>"><strong><?php echo esc_html( (string) $fix_count ); ?></strong><span><?php echo esc_html__( 'Fix', 'rest-radar' ); ?></span></a>
+						<a href="<?php echo esc_url( $retest_url ); ?>"><strong><?php echo esc_html( (string) $retest_count ); ?></strong><span><?php echo esc_html__( 'Retest', 'rest-radar' ); ?></span></a>
+					</div>
+				</div>
+
+				<div class="rest-radar-workload-card">
+					<div class="rest-radar-card-eyebrow"><?php echo esc_html__( 'Review progress', 'rest-radar' ); ?></div>
+					<div class="rest-radar-progress-heading">
+						<strong><?php echo esc_html( (string) absint( $review_progress ) ); ?>%</strong>
+						<span><?php echo esc_html__( 'triaged', 'rest-radar' ); ?></span>
+					</div>
+					<div class="rest-radar-progress-bar" aria-hidden="true"><span style="width: <?php echo esc_attr( (string) absint( $review_progress ) ); ?>%;"></span></div>
+					<div class="rest-radar-workload-list">
+						<a href="<?php echo esc_url( $review_status_url ); ?>"><span><?php echo esc_html__( 'Unreviewed', 'rest-radar' ); ?></span><strong><?php echo esc_html( (string) $unreviewed_count ); ?></strong></a>
+						<a href="<?php echo esc_url( add_query_arg( 'review', 'needs_review', $base_url ) ); ?>"><span><?php echo esc_html__( 'Needs review', 'rest-radar' ); ?></span><strong><?php echo esc_html( (string) $needs_count ); ?></strong></a>
+						<a href="<?php echo esc_url( add_query_arg( 'review', 'shielded', $base_url ) ); ?>"><span><?php echo esc_html__( 'Shielded decisions', 'rest-radar' ); ?></span><strong><?php echo esc_html( (string) $shielded_count ); ?></strong></a>
+					</div>
+				</div>
+
+				<div class="rest-radar-system-card">
+					<div class="rest-radar-card-eyebrow"><?php echo esc_html__( 'System state', 'rest-radar' ); ?></div>
+					<div class="rest-radar-system-state">
+						<span class="rest-radar-dashboard-pill <?php echo $shield_enabled ? 'is-on' : 'is-off'; ?>"><?php echo esc_html( $shield_enabled ? __( 'Shield ON', 'rest-radar' ) : __( 'Shield OFF', 'rest-radar' ) ); ?></span>
+						<a href="<?php echo esc_url( $shield_url ); ?>"><?php echo esc_html( sprintf( _n( '%d active rule', '%d active rules', absint( $rule_count ), 'rest-radar' ), absint( $rule_count ) ) ); ?></a>
+					</div>
+					<div class="rest-radar-system-details">
+						<div><span><?php echo esc_html__( 'Snapshots', 'rest-radar' ); ?></span><strong><?php echo esc_html( (string) absint( $snapshot_count ) ); ?></strong></div>
+						<div><span><?php echo esc_html__( 'Latest', 'rest-radar' ); ?></span><strong><?php echo esc_html( $latest_snapshot ); ?></strong></div>
+						<div><span><?php echo esc_html__( 'Filtered rows', 'rest-radar' ); ?></span><strong><?php echo esc_html( (string) absint( $filtered_count ) ); ?></strong></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="rest-radar-metric-strip" aria-label="<?php echo esc_attr__( 'Scan scope metrics', 'rest-radar' ); ?>">
+				<?php $this->render_dashboard_strip_metric( __( 'Total routes', 'rest-radar' ), $total, $base_url, 'total' ); ?>
+				<?php $this->render_dashboard_strip_metric( __( 'Review risk', 'rest-radar' ), $review_count, add_query_arg( 'risk', 'medium', $base_url ), 'review' ); ?>
+				<?php $this->render_dashboard_strip_metric( __( 'Public', 'rest-radar' ), $public_count, add_query_arg( 'risk', 'public', $base_url ), 'public' ); ?>
+				<?php $this->render_dashboard_strip_metric( __( 'Low', 'rest-radar' ), $low_count, add_query_arg( 'risk', 'low', $base_url ), 'low' ); ?>
+				<?php $this->render_dashboard_strip_metric( __( 'Ignored', 'rest-radar' ), $ignored_count, $base_url, 'ignored' ); ?>
+			</div>
+		</section>
+		<?php
+	}
+
+	/**
+	 * Render dashboard strip metric link.
+	 *
+	 * @param string $label Metric label.
+	 * @param int    $count Metric count.
+	 * @param string $url Link URL.
+	 * @param string $tone Tone class.
+	 * @return void
+	 */
+	private function render_dashboard_strip_metric( $label, $count, $url, $tone ) {
+		?>
+		<a class="rest-radar-strip-metric rest-radar-strip-metric-<?php echo esc_attr( sanitize_html_class( $tone ) ); ?>" href="<?php echo esc_url( $url ); ?>">
+			<strong><?php echo esc_html( (string) absint( $count ) ); ?></strong>
+			<span><?php echo esc_html( $label ); ?></span>
+		</a>
+		<?php
+	}
+
+	/**
 	 * Render stat card.
 	 *
 	 * @param string $label Label.
@@ -1473,6 +1737,234 @@ class Rest_Radar_Plugin {
 	}
 
 	/**
+	 * Get available review statuses.
+	 *
+	 * @return array<string,string>
+	 */
+	private function review_statuses() {
+		return array(
+			'new'             => __( 'New', 'rest-radar' ),
+			'needs_review'    => __( 'Needs review', 'rest-radar' ),
+			'accepted_public' => __( 'Accepted public', 'rest-radar' ),
+			'false_positive'  => __( 'False positive', 'rest-radar' ),
+			'fix_required'    => __( 'Fix required', 'rest-radar' ),
+			'shielded'        => __( 'Shielded', 'rest-radar' ),
+			'retest_required' => __( 'Retest required', 'rest-radar' ),
+		);
+	}
+
+	/**
+	 * Get severity override choices.
+	 *
+	 * @return array<string,string>
+	 */
+	private function severity_override_options() {
+		return array(
+			'critical' => __( 'Critical', 'rest-radar' ),
+			'high'     => __( 'High', 'rest-radar' ),
+			'medium'   => __( 'Review', 'rest-radar' ),
+			'public'   => __( 'Public', 'rest-radar' ),
+			'low'      => __( 'Low', 'rest-radar' ),
+		);
+	}
+
+	/**
+	 * Render review status badge.
+	 *
+	 * @param array<string,mixed> $review Review.
+	 * @return void
+	 */
+	private function render_review_badge( array $review ) {
+		$status = isset( $review['status'] ) ? (string) $review['status'] : 'new';
+		$label  = $this->review_status_label( $status );
+		?>
+		<span class="rest-radar-review-badge rest-radar-review-<?php echo esc_attr( sanitize_html_class( $status ) ); ?>"><?php echo esc_html( $label ); ?></span>
+		<?php
+	}
+
+	/**
+	 * Return review status label.
+	 *
+	 * @param string $status Status.
+	 * @return string
+	 */
+	private function review_status_label( $status ) {
+		$statuses = $this->review_statuses();
+		return isset( $statuses[ $status ] ) ? $statuses[ $status ] : $statuses['new'];
+	}
+
+	/**
+	 * Return saved endpoint reviews.
+	 *
+	 * @return array<string,array<string,mixed>>
+	 */
+	private function get_endpoint_reviews() {
+		$reviews = get_option( self::REVIEW_OPTION_NAME, array() );
+		if ( ! is_array( $reviews ) ) {
+			return array();
+		}
+
+		$clean = array();
+		foreach ( $reviews as $key => $review ) {
+			if ( ! is_string( $key ) || ! is_array( $review ) ) {
+				continue;
+			}
+
+			$key = sanitize_key( $key );
+			if ( '' === $key ) {
+				continue;
+			}
+
+			$clean[ $key ] = $this->sanitize_endpoint_review( $review );
+		}
+
+		return $clean;
+	}
+
+	/**
+	 * Sanitize one endpoint review.
+	 *
+	 * @param array<string,mixed> $review Review.
+	 * @return array<string,mixed>
+	 */
+	private function sanitize_endpoint_review( array $review ) {
+		$statuses   = array_keys( $this->review_statuses() );
+		$overrides  = array_keys( $this->severity_override_options() );
+		$status     = isset( $review['status'] ) ? sanitize_key( (string) $review['status'] ) : 'new';
+		$override   = isset( $review['severity_override'] ) ? sanitize_key( (string) $review['severity_override'] ) : '';
+
+		if ( ! in_array( $status, $statuses, true ) ) {
+			$status = 'new';
+		}
+
+		if ( ! in_array( $override, $overrides, true ) ) {
+			$override = '';
+		}
+
+		return array(
+			'status'            => $status,
+			'note'              => isset( $review['note'] ) ? sanitize_textarea_field( (string) $review['note'] ) : '',
+			'severity_override' => $override,
+			'fingerprint'       => isset( $review['fingerprint'] ) ? sanitize_text_field( (string) $review['fingerprint'] ) : '',
+			'route'             => isset( $review['route'] ) ? sanitize_text_field( (string) $review['route'] ) : '',
+			'methods'           => isset( $review['methods'] ) ? sanitize_text_field( (string) $review['methods'] ) : '',
+			'updated_at'        => isset( $review['updated_at'] ) ? sanitize_text_field( (string) $review['updated_at'] ) : '',
+			'reviewer'          => isset( $review['reviewer'] ) ? sanitize_text_field( (string) $review['reviewer'] ) : '',
+			'reviewer_id'       => isset( $review['reviewer_id'] ) ? absint( $review['reviewer_id'] ) : 0,
+		);
+	}
+
+	/**
+	 * Build review data for one row, including automatic retest flag.
+	 *
+	 * @param array<string,mixed>               $row Row.
+	 * @param array<string,array<string,mixed>> $reviews Saved reviews.
+	 * @return array<string,mixed>
+	 */
+	private function build_row_review( array $row, array $reviews ) {
+		$key         = isset( $row['key'] ) ? sanitize_key( (string) $row['key'] ) : '';
+		$fingerprint = $this->build_endpoint_fingerprint( $row );
+		$review      = isset( $reviews[ $key ] ) ? $reviews[ $key ] : array();
+
+		$review = wp_parse_args(
+			$review,
+			array(
+				'status'            => 'new',
+				'note'              => '',
+				'severity_override' => '',
+				'fingerprint'       => '',
+				'route'             => isset( $row['route'] ) ? (string) $row['route'] : '',
+				'methods'           => ! empty( $row['methods'] ) && is_array( $row['methods'] ) ? implode( ',', $row['methods'] ) : '',
+				'updated_at'        => '',
+				'reviewer'          => '',
+				'reviewer_id'       => 0,
+			)
+		);
+
+		$review = $this->sanitize_endpoint_review( $review );
+		if ( ! empty( $review['fingerprint'] ) && ! hash_equals( (string) $review['fingerprint'], (string) $fingerprint ) && in_array( $review['status'], array( 'accepted_public', 'false_positive', 'shielded' ), true ) ) {
+			$review['original_status'] = $review['status'];
+			$review['status']          = 'retest_required';
+			$review['auto_retest']     = true;
+		}
+
+		$review['fingerprint_current'] = $fingerprint;
+		return $review;
+	}
+
+	/**
+	 * Build stable technical fingerprint for retest detection.
+	 *
+	 * @param array<string,mixed> $row Row.
+	 * @return string
+	 */
+	private function build_endpoint_fingerprint( array $row ) {
+		$methods = isset( $row['methods'] ) && is_array( $row['methods'] ) ? $row['methods'] : array();
+		$methods = array_map( 'strval', $methods );
+		sort( $methods );
+
+		$data = array(
+			'route'             => isset( $row['route'] ) ? (string) $row['route'] : '',
+			'methods'           => $methods,
+			'permission'        => isset( $row['permission_callback_label'] ) ? (string) $row['permission_callback_label'] : '',
+			'permission_source' => isset( $row['permission_callback_source'] ) ? (string) $row['permission_callback_source'] : '',
+			'callback'          => isset( $row['callback_label'] ) ? (string) $row['callback_label'] : '',
+			'callback_source'   => isset( $row['callback_source'] ) ? (string) $row['callback_source'] : '',
+			'risk'              => isset( $row['risk']['level'] ) ? (string) $row['risk']['level'] : 'low',
+		);
+
+		return sha1( wp_json_encode( $data ) );
+	}
+
+	/**
+	 * Build an effective risk from a manual override.
+	 *
+	 * @param string              $override Override level.
+	 * @param array<string,mixed> $scanner_risk Original scanner risk.
+	 * @return array<string,string>
+	 */
+	private function build_override_risk( $override, array $scanner_risk ) {
+		$options = $this->severity_override_options();
+		$level   = isset( $options[ $override ] ) ? $override : ( $scanner_risk['level'] ?? 'low' );
+
+		return array(
+			'level'   => $level,
+			'label'   => $options[ $level ] ?? __( 'Low', 'rest-radar' ),
+			'message' => sprintf(
+				/* translators: %s: original scanner severity. */
+				__( 'Manual severity override. Original scanner severity: %s.', 'rest-radar' ),
+				isset( $scanner_risk['label'] ) ? (string) $scanner_risk['label'] : ucfirst( (string) ( $scanner_risk['level'] ?? 'low' ) )
+			),
+		);
+	}
+
+	/**
+	 * Check if an endpoint has a matching enabled Shield rule.
+	 *
+	 * @param array<string,mixed>            $row Row.
+	 * @param array<int,array<string,mixed>> $rules Shield rules.
+	 * @return bool
+	 */
+	private function row_has_enabled_shield_rule( array $row, array $rules ) {
+		$route   = isset( $row['route'] ) ? (string) $row['route'] : '';
+		$methods = isset( $row['methods'] ) && is_array( $row['methods'] ) ? $row['methods'] : array();
+
+		foreach ( $rules as $rule ) {
+			if ( empty( $rule['enabled'] ) ) {
+				continue;
+			}
+
+			$rule_methods = isset( $rule['methods'] ) && is_array( $rule['methods'] ) ? $rule['methods'] : array( 'ANY' );
+			$method_match = in_array( 'ANY', $rule_methods, true ) || ! empty( array_intersect( $methods, $rule_methods ) );
+			if ( $method_match && Rest_Radar_Shield::pattern_matches( $rule['pattern'] ?? '', $route ) ) {
+				return true;
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Get sanitized options.
 	 *
 	 * @return array{ignored_patterns:array<int,string>,hide_ignored:bool,hide_core_public:bool}
@@ -1501,6 +1993,66 @@ class Rest_Radar_Plugin {
 		$options['cleanup_on_uninstall'] = ! empty( $options['cleanup_on_uninstall'] );
 
 		return $options;
+	}
+
+	/**
+	 * Save one endpoint review decision.
+	 *
+	 * @return void
+	 */
+	public function save_endpoint_review() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to save endpoint reviews.', 'rest-radar' ) );
+		}
+
+		$row_key = isset( $_POST['row_key'] ) ? sanitize_key( wp_unslash( $_POST['row_key'] ) ) : '';
+		check_admin_referer( 'rest_radar_save_endpoint_review_' . $row_key );
+
+		$status      = isset( $_POST['review_status'] ) ? sanitize_key( wp_unslash( $_POST['review_status'] ) ) : 'new';
+		$override    = isset( $_POST['severity_override'] ) ? sanitize_key( wp_unslash( $_POST['severity_override'] ) ) : '';
+		$note        = isset( $_POST['review_note'] ) ? sanitize_textarea_field( wp_unslash( $_POST['review_note'] ) ) : '';
+		$route       = isset( $_POST['route'] ) ? sanitize_text_field( wp_unslash( $_POST['route'] ) ) : '';
+		$methods     = isset( $_POST['methods'] ) ? sanitize_text_field( wp_unslash( $_POST['methods'] ) ) : '';
+		$fingerprint = isset( $_POST['fingerprint'] ) ? sanitize_text_field( wp_unslash( $_POST['fingerprint'] ) ) : '';
+
+		if ( '' === $row_key ) {
+			wp_safe_redirect( admin_url( 'tools.php?page=rest-radar' ) );
+			exit;
+		}
+
+		if ( ! isset( $this->review_statuses()[ $status ] ) ) {
+			$status = 'new';
+		}
+
+		if ( '' !== $override && ! isset( $this->severity_override_options()[ $override ] ) ) {
+			$override = '';
+		}
+
+		if ( '' !== $override && '' === trim( $note ) ) {
+			wp_safe_redirect( add_query_arg( array( 'rest_radar_review_note_required' => '1', 'rr_detail' => rawurlencode( $row_key ) ), admin_url( 'tools.php?page=rest-radar' ) ) );
+			exit;
+		}
+
+		$current_user = wp_get_current_user();
+		$reviews      = $this->get_endpoint_reviews();
+		$reviews[ $row_key ] = $this->sanitize_endpoint_review(
+			array(
+				'status'            => $status,
+				'note'              => $note,
+				'severity_override' => $override,
+				'fingerprint'       => $fingerprint,
+				'route'             => $route,
+				'methods'           => $methods,
+				'updated_at'        => current_time( 'Y-m-d H:i:s' ),
+				'reviewer'          => $current_user && $current_user->exists() ? $current_user->display_name : '',
+				'reviewer_id'       => get_current_user_id(),
+			)
+		);
+
+		update_option( self::REVIEW_OPTION_NAME, $reviews, false );
+
+		wp_safe_redirect( add_query_arg( array( 'rest_radar_review_saved' => '1', 'rr_detail' => rawurlencode( $row_key ) ), admin_url( 'tools.php?page=rest-radar' ) ) );
+		exit;
 	}
 
 	/**
@@ -1543,34 +2095,53 @@ class Rest_Radar_Plugin {
 	}
 
 	/**
-	 * Add ignored marker to rows.
+	 * Add ignored, Shield, and review markers to rows.
 	 *
 	 * @param array<int,array<string,mixed>> $rows Rows.
 	 * @param array<string,mixed>            $options Options.
 	 * @return array<int,array<string,mixed>>
 	 */
 	private function prepare_rows( array $rows, array $options ) {
+		$reviews        = $this->get_endpoint_reviews();
+		$shield_options = Rest_Radar_Shield::get_options();
+		$shield_rules   = isset( $shield_options['rules'] ) && is_array( $shield_options['rules'] ) ? $shield_options['rules'] : array();
+
 		foreach ( $rows as $index => $row ) {
-			$rows[ $index ]['ignored'] = $this->row_matches_patterns( $row, $options['ignored_patterns'] );
+			$rows[ $index ]['ignored']           = $this->row_matches_patterns( $row, $options['ignored_patterns'] );
+			$rows[ $index ]['shield_rule_state'] = $this->row_has_enabled_shield_rule( $row, $shield_rules ) ? 'active' : 'none';
+			$rows[ $index ]['scanner_risk']       = isset( $row['risk'] ) && is_array( $row['risk'] ) ? $row['risk'] : array( 'level' => 'low', 'label' => __( 'Low', 'rest-radar' ), 'message' => '' );
+			$rows[ $index ]['review']            = $this->build_row_review( $row, $reviews );
+
+			if ( ! empty( $rows[ $index ]['review']['severity_override'] ) ) {
+				$rows[ $index ]['risk'] = $this->build_override_risk( $rows[ $index ]['review']['severity_override'], $rows[ $index ]['scanner_risk'] );
+			}
 		}
 
 		return $rows;
 	}
 
 	/**
-	 * Build stats by risk level.
+	 * Build stats by risk level and review state.
 	 *
 	 * @param array<int,array<string,mixed>> $rows Rows.
 	 * @return array<string,int>
 	 */
 	private function build_stats( array $rows ) {
 		$stats = array(
-			'critical' => 0,
-			'high'     => 0,
-			'medium'   => 0,
-			'public'   => 0,
-			'low'      => 0,
-			'ignored'  => 0,
+			'critical'                => 0,
+			'high'                    => 0,
+			'medium'                  => 0,
+			'public'                  => 0,
+			'low'                     => 0,
+			'ignored'                 => 0,
+			'review_new'              => 0,
+			'review_needs_review'     => 0,
+			'review_accepted_public'  => 0,
+			'review_false_positive'   => 0,
+			'review_fix_required'     => 0,
+			'review_shielded'         => 0,
+			'review_retest_required'  => 0,
+			'review_unreviewed'       => 0,
 		);
 
 		foreach ( $rows as $row ) {
@@ -1580,6 +2151,15 @@ class Rest_Radar_Plugin {
 			}
 			if ( ! empty( $row['ignored'] ) ) {
 				$stats['ignored']++;
+			}
+
+			$status = isset( $row['review']['status'] ) ? (string) $row['review']['status'] : 'new';
+			$key    = 'review_' . $status;
+			if ( isset( $stats[ $key ] ) ) {
+				$stats[ $key ]++;
+			}
+			if ( in_array( $status, array( 'new', 'needs_review', 'retest_required' ), true ) ) {
+				$stats['review_unreviewed']++;
 			}
 		}
 
@@ -1593,22 +2173,27 @@ class Rest_Radar_Plugin {
 	 * @param string                         $risk_filter Risk filter.
 	 * @param string                         $source_filter Source filter.
 	 * @param string                         $search_filter Search filter.
+	 * @param string                         $review_filter Review filter.
 	 * @param array<string,mixed>            $options Options.
 	 * @return array<int,array<string,mixed>>
 	 */
-	private function filter_rows( array $rows, $risk_filter, $source_filter, $search_filter, array $options ) {
+	private function filter_rows( array $rows, $risk_filter, $source_filter, $search_filter, $review_filter, array $options ) {
 		$allowed_risks   = array( 'critical', 'high', 'medium', 'public', 'low' );
 		$allowed_sources = array( 'plugin', 'theme', 'mu-plugin', 'core', 'unknown' );
+		$allowed_reviews = array_merge( array_keys( $this->review_statuses() ), array( 'unreviewed', 'high_unreviewed', 'has_shield_rule' ) );
 		$risk_filter     = in_array( $risk_filter, $allowed_risks, true ) ? $risk_filter : '';
 		$source_filter   = in_array( $source_filter, $allowed_sources, true ) ? $source_filter : '';
+		$review_filter   = in_array( $review_filter, $allowed_reviews, true ) ? $review_filter : '';
 		$search_filter   = strtolower( trim( (string) $search_filter ) );
 
 		return array_values(
 			array_filter(
 				$rows,
-				static function ( $row ) use ( $risk_filter, $source_filter, $search_filter, $options ) {
+				static function ( $row ) use ( $risk_filter, $source_filter, $search_filter, $review_filter, $options ) {
 					$level           = isset( $row['risk']['level'] ) ? $row['risk']['level'] : 'low';
 					$source_category = isset( $row['source']['category'] ) ? $row['source']['category'] : 'unknown';
+					$review_status   = isset( $row['review']['status'] ) ? (string) $row['review']['status'] : 'new';
+					$has_shield_rule = ! empty( $row['shield_rule_state'] ) && 'active' === $row['shield_rule_state'];
 
 					if ( ! empty( $options['hide_ignored'] ) && ! empty( $row['ignored'] ) ) {
 						return false;
@@ -1623,6 +2208,22 @@ class Rest_Radar_Plugin {
 					}
 
 					if ( $source_filter && $source_filter !== $source_category ) {
+						return false;
+					}
+
+					if ( 'unreviewed' === $review_filter && ! in_array( $review_status, array( 'new', 'needs_review', 'retest_required' ), true ) ) {
+						return false;
+					}
+
+					if ( 'high_unreviewed' === $review_filter && ( ! in_array( $level, array( 'critical', 'high' ), true ) || ! in_array( $review_status, array( 'new', 'needs_review', 'retest_required' ), true ) ) ) {
+						return false;
+					}
+
+					if ( 'has_shield_rule' === $review_filter && ! $has_shield_rule ) {
+						return false;
+					}
+
+					if ( $review_filter && ! in_array( $review_filter, array( 'unreviewed', 'high_unreviewed', 'has_shield_rule' ), true ) && $review_filter !== $review_status ) {
 						return false;
 					}
 
@@ -1641,6 +2242,7 @@ class Rest_Radar_Plugin {
 								$row['permission_callback_label'] ?? '',
 								$row['permission_callback_source'] ?? '',
 								$row['source']['label'] ?? '',
+								$row['review']['note'] ?? '',
 								implode( ' ', $row['tags'] ?? array() ),
 							)
 						)
@@ -1711,6 +2313,11 @@ class Rest_Radar_Plugin {
 		$tags       = ! empty( $row['tags'] ) && is_array( $row['tags'] ) ? implode( ', ', array_map( 'strval', $row['tags'] ) ) : 'none';
 		$methods    = ! empty( $row['methods'] ) && is_array( $row['methods'] ) ? implode( ', ', array_map( 'strval', $row['methods'] ) ) : 'unknown';
 
+		$review_status = isset( $row['review']['status'] ) ? $this->review_status_label( (string) $row['review']['status'] ) : __( 'New', 'rest-radar' );
+		$review_note   = ! empty( $row['review']['note'] ) ? (string) $row['review']['note'] : 'none';
+		$override      = ! empty( $row['review']['severity_override'] ) ? (string) $row['review']['severity_override'] : 'none';
+		$shield_state  = ! empty( $row['shield_rule_state'] ) && 'active' === $row['shield_rule_state'] ? 'active' : 'none';
+
 		$lines = array(
 			'Title: ' . $title,
 			'',
@@ -1730,6 +2337,12 @@ class Rest_Radar_Plugin {
 			'- Main callback: ' . ( $row['callback_label'] ?? 'unknown' ),
 			'- Main source: ' . ( $row['callback_source'] ?? 'unknown' ),
 			'- Tags: ' . $tags,
+			'',
+			'Review decision:',
+			'- Status: ' . $review_status,
+			'- Severity override: ' . $override,
+			'- Shield rule state: ' . $shield_state,
+			'- Reviewer note: ' . $review_note,
 			'',
 			'Current observation:',
 			'- ' . ( $row['risk']['message'] ?? 'No warning message available.' ),
@@ -1868,13 +2481,14 @@ class Rest_Radar_Plugin {
 		$risk_filter   = isset( $_GET['risk'] ) ? sanitize_key( wp_unslash( $_GET['risk'] ) ) : '';
 		$source_filter = isset( $_GET['source'] ) ? sanitize_key( wp_unslash( $_GET['source'] ) ) : '';
 		$search_filter = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
-		$filtered_rows = $this->filter_rows( $prepared_rows, $risk_filter, $source_filter, $search_filter, $options );
+		$review_filter = isset( $_GET['review'] ) ? sanitize_key( wp_unslash( $_GET['review'] ) ) : '';
+		$filtered_rows = $this->filter_rows( $prepared_rows, $risk_filter, $source_filter, $search_filter, $review_filter, $options );
 
 		nocache_headers();
 		header( 'Content-Type: text/markdown; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename=rest-radar-qa-report-' . gmdate( 'Y-m-d-His' ) . '.md' );
 
-		echo $this->build_markdown_report( $filtered_rows, $prepared_rows, $risk_filter, $source_filter, $search_filter ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown file download, content is sanitized in builder.
+		echo $this->build_markdown_report( $filtered_rows, $prepared_rows, $risk_filter, $source_filter, $search_filter, $review_filter ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Markdown file download, content is sanitized in builder.
 		exit;
 	}
 
@@ -1888,7 +2502,7 @@ class Rest_Radar_Plugin {
 	 * @param string                         $search_filter Search filter.
 	 * @return string
 	 */
-	private function build_markdown_report( array $filtered_rows, array $all_rows, $risk_filter, $source_filter, $search_filter ) {
+	private function build_markdown_report( array $filtered_rows, array $all_rows, $risk_filter, $source_filter, $search_filter, $review_filter = '' ) {
 		$stats = $this->build_stats( $all_rows );
 		$lines = array(
 			'# REST Radar QA Audit Report',
@@ -1904,6 +2518,7 @@ class Rest_Radar_Plugin {
 			'- Risk: ' . ( $risk_filter ? $this->markdown_inline( $risk_filter ) : 'all' ),
 			'- Source: ' . ( $source_filter ? $this->markdown_inline( $source_filter ) : 'all' ),
 			'- Search: ' . ( $search_filter ? $this->markdown_inline( $search_filter ) : 'none' ),
+			'- Review: ' . ( $review_filter ? $this->markdown_inline( $review_filter ) : 'all' ),
 			'',
 			'## Summary',
 			'',
@@ -1916,6 +2531,10 @@ class Rest_Radar_Plugin {
 			'| Public | ' . absint( $stats['public'] ?? 0 ) . ' |',
 			'| Low | ' . absint( $stats['low'] ?? 0 ) . ' |',
 			'| Ignored | ' . absint( $stats['ignored'] ?? 0 ) . ' |',
+			'| Needs review | ' . absint( $stats['review_needs_review'] ?? 0 ) . ' |',
+			'| Fix required | ' . absint( $stats['review_fix_required'] ?? 0 ) . ' |',
+			'| Retest required | ' . absint( $stats['review_retest_required'] ?? 0 ) . ' |',
+			'| Shielded | ' . absint( $stats['review_shielded'] ?? 0 ) . ' |',
 			'',
 			'## Manual QA focus',
 			'',
@@ -1948,6 +2567,12 @@ class Rest_Radar_Plugin {
 			$lines[] = '### Finding ' . ( $index + 1 ) . ': `' . $this->markdown_code( $row['route'] ?? '' ) . '`';
 			$lines[] = '';
 			$lines[] = '- Severity: **' . $this->markdown_inline( $row['risk']['label'] ?? 'Low' ) . '**';
+			$lines[] = '- Scanner severity: **' . $this->markdown_inline( $row['scanner_risk']['label'] ?? ( $row['scanner_risk']['level'] ?? 'Low' ) ) . '**';
+			$lines[] = '- Review status: ' . $this->markdown_inline( $this->review_status_label( $row['review']['status'] ?? 'new' ) );
+			$lines[] = '- Severity override: ' . $this->markdown_inline( ! empty( $row['review']['severity_override'] ) ? $row['review']['severity_override'] : 'none' );
+			$lines[] = '- Reviewer note: ' . $this->markdown_inline( ! empty( $row['review']['note'] ) ? $row['review']['note'] : 'none' );
+			$lines[] = '- Reviewed date: ' . $this->markdown_inline( ! empty( $row['review']['updated_at'] ) ? $row['review']['updated_at'] : 'not reviewed' );
+			$lines[] = '- Shield rule: ' . $this->markdown_inline( ! empty( $row['shield_rule_state'] ) && 'active' === $row['shield_rule_state'] ? 'active' : 'none' );
 			$lines[] = '- Methods: `' . $this->markdown_code( implode( ', ', $row['methods'] ?? array() ) ) . '`';
 			$lines[] = '- Source: ' . $this->markdown_inline( $row['source']['label'] ?? 'Unknown' );
 			$lines[] = '- Namespace: `' . $this->markdown_code( $row['namespace'] ?? '' ) . '`';
@@ -2069,6 +2694,14 @@ class Rest_Radar_Plugin {
 					<?php echo esc_html__( 'Log blocked requests', 'rest-radar' ); ?>
 				</label>
 
+				<label class="rest-radar-checkbox">
+					<input type="checkbox" name="anonymize_ip" value="1" <?php checked( ! empty( $shield_options['anonymize_ip'] ) ); ?> />
+					<span>
+						<strong><?php echo esc_html__( 'Anonymize IP addresses in Shield logs', 'rest-radar' ); ?></strong><br />
+						<span class="description"><?php echo esc_html__( 'Recommended for EU production sites. IPv4 logs keep the first three octets only; IPv6 logs keep the network prefix only.', 'rest-radar' ); ?></span>
+					</span>
+				</label>
+
 				<button type="submit" class="button button-primary"><?php echo esc_html__( 'Save shield settings', 'rest-radar' ); ?></button>
 			</form>
 
@@ -2148,6 +2781,7 @@ class Rest_Radar_Plugin {
 				'auto_safe_mode' => $auto_safe_mode,
 				'include_core'   => $include_core,
 				'log_enabled'    => ! empty( $_POST['log_enabled'] ),
+				'anonymize_ip'   => ! empty( $_POST['anonymize_ip'] ),
 			)
 		);
 
@@ -2228,16 +2862,30 @@ class Rest_Radar_Plugin {
 		$options     = $this->get_options();
 		$rows        = $this->prepare_rows( Rest_Radar_Scanner::scan(), $options );
 		$snapshots   = $this->get_snapshots();
+		$snapshot_rows = $this->build_snapshot_rows( $rows );
+		$limited       = count( $rows ) > count( $snapshot_rows );
+
 		$snapshots[] = array(
 			'id'         => substr( sha1( $name . '|' . microtime( true ) . '|' . wp_rand() ), 0, 16 ),
 			'name'       => $name,
 			'created_at' => current_time( 'Y-m-d H:i:s' ),
-			'rows'       => $this->build_snapshot_rows( $rows ),
+			'rows'       => $snapshot_rows,
 		);
 
-		update_option( self::SNAPSHOT_OPTION_NAME, array_slice( $snapshots, -12 ), false );
+		$snapshots = array_slice( $snapshots, - self::MAX_SNAPSHOTS );
+		while ( strlen( maybe_serialize( $snapshots ) ) > self::MAX_SNAPSHOT_OPTION_BYTES && count( $snapshots ) > 1 ) {
+			array_shift( $snapshots );
+			$limited = true;
+		}
 
-		wp_safe_redirect( add_query_arg( 'rest_radar_snapshot_created', '1', admin_url( 'tools.php?page=rest-radar' ) ) );
+		update_option( self::SNAPSHOT_OPTION_NAME, $snapshots, false );
+
+		$redirect_args = array( 'rest_radar_snapshot_created' => '1' );
+		if ( $limited ) {
+			$redirect_args['rest_radar_snapshot_limited'] = '1';
+		}
+
+		wp_safe_redirect( add_query_arg( $redirect_args, admin_url( 'tools.php?page=rest-radar' ) ) );
 		exit;
 	}
 
@@ -2416,7 +3064,8 @@ class Rest_Radar_Plugin {
 		$risk_filter   = isset( $_GET['risk'] ) ? sanitize_key( wp_unslash( $_GET['risk'] ) ) : '';
 		$source_filter = isset( $_GET['source'] ) ? sanitize_key( wp_unslash( $_GET['source'] ) ) : '';
 		$search_filter = isset( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
-		$filtered_rows = $this->filter_rows( $prepared_rows, $risk_filter, $source_filter, $search_filter, $options );
+		$review_filter = isset( $_GET['review'] ) ? sanitize_key( wp_unslash( $_GET['review'] ) ) : '';
+		$filtered_rows = $this->filter_rows( $prepared_rows, $risk_filter, $source_filter, $search_filter, $review_filter, $options );
 
 		nocache_headers();
 		header( 'Content-Type: text/csv; charset=utf-8' );
@@ -2430,7 +3079,8 @@ class Rest_Radar_Plugin {
 		fputcsv(
 			$output,
 			array(
-				'Risk',
+				'Effective Risk',
+				'Scanner Risk',
 				'Methods',
 				'Source',
 				'Namespace',
@@ -2441,6 +3091,12 @@ class Rest_Radar_Plugin {
 				'Main Source',
 				'Tags',
 				'Ignored',
+				'Review Status',
+				'Reviewer Note',
+				'Severity Override',
+				'Reviewed Date',
+				'Reviewer',
+				'Shield Rule State',
 				'Reason',
 				'Recommended Action',
 			)
@@ -2453,6 +3109,7 @@ class Rest_Radar_Plugin {
 					array( $this, 'sanitize_csv_cell' ),
 					array(
 						$row['risk']['level'] ?? '',
+						$row['scanner_risk']['level'] ?? '',
 						implode( ', ', $row['methods'] ?? array() ),
 						$row['source']['label'] ?? '',
 						$row['namespace'] ?? '',
@@ -2463,6 +3120,12 @@ class Rest_Radar_Plugin {
 						$row['callback_source'] ?? '',
 						implode( ', ', $row['tags'] ?? array() ),
 						! empty( $row['ignored'] ) ? 'yes' : 'no',
+						$row['review']['status'] ?? 'new',
+						$row['review']['note'] ?? '',
+						$row['review']['severity_override'] ?? '',
+						$row['review']['updated_at'] ?? '',
+						$row['review']['reviewer'] ?? '',
+						$row['shield_rule_state'] ?? 'none',
 						$row['risk']['message'] ?? '',
 						$row['recommendation'] ?? '',
 					)

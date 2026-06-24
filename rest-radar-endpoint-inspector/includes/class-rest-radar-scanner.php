@@ -425,7 +425,21 @@ class Rest_Radar_Scanner {
 	 * @return bool
 	 */
 	private static function is_public_callback( $callback ) {
-		return is_string( $callback ) && '__return_true' === $callback;
+		if ( ! is_string( $callback ) ) {
+			return false;
+		}
+
+		$public_callbacks = apply_filters(
+			'rest_radar_public_permission_callbacks',
+			array( '__return_true' )
+		);
+
+		if ( ! is_array( $public_callbacks ) ) {
+			$public_callbacks = array( '__return_true' );
+		}
+
+		$public_callbacks = array_values( array_filter( array_map( 'strval', $public_callbacks ) ) );
+		return in_array( $callback, $public_callbacks, true );
 	}
 
 	/**

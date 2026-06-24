@@ -1,8 +1,22 @@
 # REST Radar - Endpoint Inspector
 
-REST Radar is a WordPress admin tool for inspecting registered REST API endpoints, flagging risky permission patterns, generating QA-ready reports, and applying non-destructive endpoint protection rules.
+REST Radar is a WordPress admin tool for inspecting registered REST API endpoints, flagging risky permission patterns, generating QA-ready reports, saving regression snapshots, and applying non-destructive endpoint protection rules.
 
-## Version 0.7.0
+## Version 0.9.1
+
+### Dashboard Layout & Visual Optimization
+
+REST Radar 0.9.1 redesigns the admin dashboard area so the most important operational decisions are visible before the full endpoint table.
+
+Dashboard improvements:
+
+- Replaced the flat nine-card summary row with an operational overview panel.
+- Added a dedicated Priority queue card for critical, high, fix-required, and retest-required work.
+- Added a Review progress card with triage percentage and direct links to unreviewed, needs-review, and shielded decisions.
+- Added a System state card for Shield status, rule count, snapshots, latest snapshot, and filtered row count.
+- Added a compact scan scope metric strip for total routes, review risk, public, low, and ignored rows.
+- Added clearer primary actions for Review queue, CSV export, and QA Markdown export.
+- Improved responsive behavior for medium and narrow admin screens.
 
 ### Scanner and QA features
 
@@ -19,6 +33,34 @@ REST Radar is a WordPress admin tool for inspecting registered REST API endpoint
 - Saves REST scan snapshots and compares before/after endpoint changes for regression QA.
 - Exports CSV and QA Markdown reports.
 
+### Endpoint Review Status & Finding Triage Workflow
+
+REST Radar 0.9.0 adds a human review layer so scanner findings can become reusable QA/security evidence.
+
+Review statuses:
+
+- New
+- Needs review
+- Accepted public
+- False positive
+- Fix required
+- Shielded
+- Retest required
+
+Review features:
+
+- Endpoint Details includes an Endpoint review decision card.
+- Each endpoint can store a reviewer note.
+- Each endpoint can store a manual severity override.
+- Severity override requires a reviewer note.
+- Endpoint inventory includes a Review column.
+- Review filters include unreviewed only, critical/high + unreviewed, has Shield rule, and all individual review statuses.
+- Dashboard and admin summary cards include review workflow counts.
+- CSV export includes effective risk, scanner risk, review status, reviewer note, severity override, reviewed date, reviewer, and Shield rule state.
+- QA Markdown export includes review evidence.
+- QA ticket drafts include review decision data.
+- If a previously accepted/false-positive/shielded endpoint changes its technical fingerprint, REST Radar marks it as Retest required in the current scan.
+
 ### Snapshot compare
 
 Use snapshots to save the current REST API inventory before a plugin/theme/core update, then compare it with a later scan.
@@ -31,8 +73,11 @@ REST Radar can highlight:
 - permission callback changes
 - source changes
 
-This is designed for manual QA and regression evidence, not automated destructive testing.
+Snapshot storage is limited to protect `wp_options`:
 
+- maximum 8 snapshots
+- maximum 1000 endpoint rows per snapshot
+- soft serialized payload guard of about 750 KB
 
 ### Endpoint Shield
 
@@ -50,13 +95,25 @@ Additional protection:
 
 - One-click Add shield rule from endpoint Details.
 - Auto Safe Mode for critical/high custom endpoints.
+- Auto Safe Mode scan result is cached for 60 seconds to reduce REST request overhead.
 - Optional inclusion of WordPress core routes in Auto Safe Mode.
 - Recent blocked request log.
+- Optional IP anonymization for Shield logs, enabled by default.
 - Clear logs button.
+
+### Technical limitations and privacy notes
+
+- `__return_true` is detected as a public permission callback.
+- Custom public wrapper callbacks can be declared through the `rest_radar_public_permission_callbacks` filter.
+- REST Radar cannot statically inspect the runtime body of a `Closure` such as `fn() => true`, so closure-based allow-all logic may require manual review.
+- Auto Safe Mode scans REST routes during REST request handling, but the scan output is cached for 60 seconds.
+- Shield logs can store request IP addresses. IP anonymization is enabled by default and should stay enabled for EU production sites unless full IP evidence is intentionally required.
+- Callback source paths are intended for administrators only. Do not expose scanner output publicly without removing internal source paths.
+- Wildcard Shield route matching is case-insensitive. For example, `/Wp/v2/*` can match `/wp/v2/posts`.
 
 ### Developer fix snippets
 
-Endpoint Details now includes a developer-oriented code snippet suggesting how to adjust the original route registration, especially around `permission_callback` and `current_user_can()`.
+Endpoint Details includes a developer-oriented code snippet suggesting how to adjust the original route registration, especially around `permission_callback` and `current_user_can()`.
 
 ## Safety notes
 
@@ -68,32 +125,3 @@ Endpoint Details now includes a developer-oriented code snippet suggesting how t
 ## Location
 
 WordPress Admin → Tools → REST Radar
-
-
-## 0.5.1 - Dashboard widget
-
-Adds a WordPress Dashboard widget with a compact REST Radar summary: total routes, critical/high/review counts, Shield status, rule/log counts, latest blocked route, and quick links to the full scanner.
-
-
-## 0.5.2 - Professional UI/UX polish
-
-- Added a cleaner product-style admin hero header with version and export actions.
-- Improved scan summary cards, toolbar, filter layout, table container, badges, details panel, sidebar boxes, and dashboard widget styling.
-- Added a compact table shell for better horizontal scrolling on dense REST inventories.
-- Added Endpoint Shield status badge styling in the sidebar.
-- No destructive behaviour changes; this is a cumulative UI/UX refinement release.
-
-
-Current version: 0.8.0
-
-
-## 0.8.0 Stabilization
-
-This release adds safer production behavior:
-
-- Optional uninstall cleanup setting
-- `uninstall.php` support
-- Explicit confirmation required for Auto Safe Mode
-- Separate confirmation required for WordPress core route protection
-- Admin warnings when Shield or Auto Safe Mode is active
-- Safe defaults remain enforced

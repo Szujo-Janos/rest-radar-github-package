@@ -1,3 +1,43 @@
+# Changelog
+
+## 0.9.1
+
+- Redesigned the main admin dashboard summary area into an operational overview.
+- Added a Priority queue card for critical, high, fix-required, and retest-required endpoints.
+- Added a Review progress card with triage percentage and direct review links.
+- Added a System state card for Shield status, active rules, snapshots, latest snapshot, and filtered row count.
+- Added a compact scan scope metric strip for lower-priority route categories.
+- Improved dashboard spacing, hierarchy, visual grouping, and responsive layout.
+
+## 0.9.0
+
+- Added Endpoint Review Status & Finding Triage Workflow.
+- Added `rest_radar_endpoint_reviews` storage for endpoint review decisions.
+- Added review statuses: New, Needs review, Accepted public, False positive, Fix required, Shielded, Retest required.
+- Added reviewer notes and severity override support. Severity override requires a note.
+- Added Review column and review filters to the endpoint inventory.
+- Added review summary cards and dashboard metrics.
+- Added Shield rule state detection per endpoint.
+- Expanded CSV and QA Markdown exports with review evidence fields.
+- Added review decision data to QA ticket drafts.
+- Added automatic Retest required marking when accepted/false-positive/shielded endpoint fingerprints change.
+- Added public callback filter `rest_radar_public_permission_callbacks`.
+- Added 60-second Auto Safe Mode scan transient cache.
+- Added optional Shield log IP anonymization, enabled by default.
+- Added snapshot storage guards for `wp_options`.
+- Updated documentation with scanner limitations and privacy notes.
+
+## 0.8.0
+
+- Added `uninstall.php` with optional cleanup behavior.
+- Added an admin setting to remove REST Radar settings, Shield rules/logs, and snapshots when the plugin is deleted.
+- Added safer Endpoint Shield controls.
+- Auto Safe Mode now requires explicit confirmation before it can be enabled.
+- WordPress core route protection now requires a separate confirmation.
+- Added persistent admin warnings when Endpoint Shield, Auto Safe Mode, or core route protection is active.
+- Enforced safe defaults: Shield OFF, Auto Safe Mode OFF, core route protection OFF.
+- Kept all previous endpoint scanning, QA report, Shield, dashboard, snapshot/compare, export, and UI features.
+
 ## 0.8.0
 
 - Added `uninstall.php` with optional cleanup behavior.

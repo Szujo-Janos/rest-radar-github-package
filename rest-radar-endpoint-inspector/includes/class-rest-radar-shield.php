@@ -43,6 +43,7 @@ class Rest_Radar_Shield {
 			'auto_safe_mode' => false,
 			'include_core'   => false,
 			'log_enabled'    => true,
+			'anonymize_ip'   => true,
 			'rules'          => array(),
 		);
 
@@ -56,6 +57,7 @@ class Rest_Radar_Shield {
 		$options['auto_safe_mode'] = ! empty( $options['auto_safe_mode'] );
 		$options['include_core']   = ! empty( $options['auto_safe_mode'] ) && ! empty( $options['include_core'] );
 		$options['log_enabled']    = ! empty( $options['log_enabled'] );
+		$options['anonymize_ip']   = ! empty( $options['anonymize_ip'] );
 		$options['rules']          = self::sanitize_rules( is_array( $options['rules'] ) ? $options['rules'] : array() );
 
 		return $options;
@@ -73,6 +75,7 @@ class Rest_Radar_Shield {
 		$options['auto_safe_mode'] = ! empty( $settings['auto_safe_mode'] );
 		$options['include_core']   = ! empty( $settings['auto_safe_mode'] ) && ! empty( $settings['include_core'] );
 		$options['log_enabled']    = ! empty( $settings['log_enabled'] );
+		$options['anonymize_ip']   = ! empty( $settings['anonymize_ip'] );
 
 		update_option( self::OPTION_NAME, $options, false );
 	}
@@ -422,7 +425,14 @@ class Rest_Radar_Shield {
 			return '';
 		}
 
-		$rows = Rest_Radar_Scanner::scan();
+		$cache_key = 'rest_radar_auto_safe_scan_v' . REST_RADAR_VERSION;
+		$rows      = get_transient( $cache_key );
+
+		if ( ! is_array( $rows ) ) {
+			$rows = Rest_Radar_Scanner::scan();
+			set_transient( $cache_key, $rows, 60 );
+		}
+
 		foreach ( $rows as $row ) {
 			if ( empty( $row['route'] ) || (string) $row['route'] !== (string) $route ) {
 				continue;
@@ -493,7 +503,7 @@ class Rest_Radar_Shield {
 				'reason'  => sanitize_text_field( (string) $reason ),
 				'rule_id' => sanitize_key( (string) $rule_id ),
 				'user_id' => get_current_user_id(),
-				'ip'      => self::get_remote_ip(),
+				'ip'      => self::get_remote_ip( ! empty( $options['anonymize_ip'] ) ),
 			)
 		);
 
@@ -525,9 +535,39 @@ class Rest_Radar_Shield {
 	 *
 	 * @return string
 	 */
-	private static function get_remote_ip() {
+	private static function get_remote_ip( $anonymize = true ) {
 		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
-		return $ip;
+		$ip = trim( $ip );
+
+		if ( '' === $ip || empty( $anonymize ) ) {
+			return $ip;
+		}
+
+		if ( false !== filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4 ) ) {
+			$parts    = explode( '.', $ip );
+			$parts[3] = '0';
+			return implode( '.', $parts );
+		}
+
+		if ( false !== filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6 ) ) {
+			$packed = inet_pton( $ip );
+			if ( false === $packed ) {
+				return '';
+			}
+
+			$bytes = unpack( 'C*', $packed );
+			if ( ! is_array( $bytes ) ) {
+				return '';
+			}
+
+			for ( $i = 9; $i <= 16; $i++ ) {
+				$bytes[ $i ] = 0;
+			}
+
+			return inet_ntop( pack( 'C*', ...array_values( $bytes ) ) );
+		}
+
+		return '';
 	}
 
 	/**

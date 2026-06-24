@@ -1,4 +1,4 @@
-/* REST Radar admin UI - 0.5.2 */
+/* REST Radar admin UI - 0.9.1 */
 .rest-radar-wrap {
 	--rr-bg: #f6f7fb;
 	--rr-surface: #ffffff;
@@ -158,7 +158,7 @@
 
 .rest-radar-cards {
 	display: grid;
-	grid-template-columns: repeat(5, minmax(120px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
 	gap: 14px;
 	margin: 18px 0;
 }
@@ -752,7 +752,7 @@
 
 .rest-radar-dashboard-grid {
 	display: grid;
-	grid-template-columns: repeat(4, minmax(0, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(95px, 1fr));
 	gap: 8px;
 	margin: 12px 0;
 }
@@ -1073,4 +1073,411 @@
 	padding: 8px 10px;
 	border-radius: 10px;
 	background: #f8fafc;
+}
+
+
+/* Review workflow - 0.9.0 */
+.rest-radar-review-card textarea,
+.rest-radar-review-card select,
+.rest-radar-review-card input[type="text"] {
+	width: 100%;
+	max-width: 100%;
+}
+
+.rest-radar-review-form label {
+	display: block;
+	margin-top: 12px;
+}
+
+.rest-radar-review-current {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	align-items: center;
+	margin: 10px 0 12px;
+}
+
+.rest-radar-review-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	border-radius: 999px;
+	border: 1px solid var(--rr-border-soft);
+	background: #f8fafc;
+	color: var(--rr-muted);
+	font-size: 11px;
+	font-weight: 700;
+	line-height: 1.2;
+	white-space: nowrap;
+}
+
+.rest-radar-review-new { background: #f8fafc; color: #475569; border-color: #cbd5e1; }
+.rest-radar-review-needs_review { background: #fffbeb; color: #92400e; border-color: #fde68a; }
+.rest-radar-review-accepted_public { background: #eff6ff; color: #1d4ed8; border-color: #bfdbfe; }
+.rest-radar-review-false_positive { background: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+.rest-radar-review-fix_required { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.rest-radar-review-shielded,
+.rest-radar-review-shield-rule { background: #eef2ff; color: #4338ca; border-color: #c7d2fe; }
+.rest-radar-review-retest_required { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+.rest-radar-card-review-needs,
+.rest-radar-card-review-fix,
+.rest-radar-card-review-retest,
+.rest-radar-card-review-shielded { border-top: 4px solid #7c3aed; }
+
+/* Admin dashboard overview - 0.9.1 */
+.rest-radar-admin-dashboard {
+	margin: 18px 0 20px;
+	padding: 20px;
+	border: 1px solid var(--rr-border);
+	border-radius: 20px;
+	background:
+		radial-gradient(circle at 4% 0, rgba(37, 99, 235, 0.10), transparent 30%),
+		linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+	box-shadow: var(--rr-shadow);
+}
+
+.rest-radar-admin-dashboard-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 18px;
+	margin-bottom: 18px;
+}
+
+.rest-radar-admin-dashboard-head h2 {
+	margin: 0;
+	font-size: 22px;
+	line-height: 1.2;
+	letter-spacing: -0.03em;
+	color: var(--rr-text);
+}
+
+.rest-radar-admin-dashboard-head p {
+	max-width: 860px;
+	margin: 8px 0 0;
+	color: var(--rr-muted);
+	line-height: 1.55;
+}
+
+.rest-radar-admin-dashboard-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	flex-wrap: wrap;
+	min-width: 265px;
+}
+
+.rest-radar-admin-dashboard-grid {
+	display: grid;
+	grid-template-columns: minmax(280px, 1.25fr) minmax(260px, 0.95fr) minmax(260px, 0.8fr);
+	gap: 14px;
+	align-items: stretch;
+}
+
+.rest-radar-priority-card,
+.rest-radar-workload-card,
+.rest-radar-system-card {
+	position: relative;
+	overflow: hidden;
+	padding: 18px;
+	border: 1px solid var(--rr-border-soft);
+	border-radius: 18px;
+	background: rgba(255, 255, 255, 0.92);
+	box-shadow: 0 5px 18px rgba(15, 23, 42, 0.05);
+}
+
+.rest-radar-priority-card::after,
+.rest-radar-workload-card::after,
+.rest-radar-system-card::after {
+	content: "";
+	position: absolute;
+	right: -28px;
+	top: -28px;
+	width: 110px;
+	height: 110px;
+	border-radius: 999px;
+	background: rgba(37, 99, 235, 0.07);
+}
+
+.rest-radar-priority-card.is-danger {
+	border-color: #fecaca;
+	background: linear-gradient(145deg, #fff7f7 0%, #ffffff 74%);
+}
+
+.rest-radar-priority-card.is-warning {
+	border-color: #fed7aa;
+	background: linear-gradient(145deg, #fff7ed 0%, #ffffff 74%);
+}
+
+.rest-radar-priority-card.is-good {
+	border-color: #bbf7d0;
+	background: linear-gradient(145deg, #f0fdf4 0%, #ffffff 74%);
+}
+
+.rest-radar-card-eyebrow {
+	position: relative;
+	z-index: 1;
+	font-size: 11px;
+	font-weight: 850;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+	color: var(--rr-muted);
+}
+
+.rest-radar-priority-number {
+	position: relative;
+	z-index: 1;
+	margin: 12px 0 6px;
+	font-size: clamp(42px, 4vw, 60px);
+	font-weight: 900;
+	line-height: 0.9;
+	letter-spacing: -0.06em;
+	color: #0f172a;
+}
+
+.rest-radar-priority-card.is-danger .rest-radar-priority-number { color: var(--rr-critical); }
+.rest-radar-priority-card.is-warning .rest-radar-priority-number { color: var(--rr-review); }
+.rest-radar-priority-card.is-good .rest-radar-priority-number { color: var(--rr-low); }
+
+.rest-radar-priority-card p {
+	position: relative;
+	z-index: 1;
+	max-width: 520px;
+	margin: 0 0 16px;
+	color: #475569;
+	line-height: 1.5;
+}
+
+.rest-radar-priority-split {
+	position: relative;
+	z-index: 1;
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 8px;
+}
+
+.rest-radar-priority-split a,
+.rest-radar-workload-list a,
+.rest-radar-strip-metric {
+	text-decoration: none;
+}
+
+.rest-radar-priority-split a {
+	display: grid;
+	gap: 4px;
+	padding: 10px;
+	border: 1px solid var(--rr-border-soft);
+	border-radius: 13px;
+	background: rgba(255, 255, 255, 0.78);
+	color: #334155;
+}
+
+.rest-radar-priority-split a:hover,
+.rest-radar-priority-split a:focus,
+.rest-radar-workload-list a:hover,
+.rest-radar-workload-list a:focus,
+.rest-radar-strip-metric:hover,
+.rest-radar-strip-metric:focus {
+	border-color: #93c5fd;
+	box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10);
+	outline: none;
+}
+
+.rest-radar-priority-split strong {
+	font-size: 24px;
+	line-height: 1;
+	letter-spacing: -0.03em;
+	color: #0f172a;
+}
+
+.rest-radar-priority-split span {
+	font-size: 11px;
+	font-weight: 750;
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+	color: var(--rr-muted);
+}
+
+.rest-radar-progress-heading {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	margin-top: 14px;
+}
+
+.rest-radar-progress-heading strong {
+	font-size: 38px;
+	line-height: 1;
+	letter-spacing: -0.05em;
+	color: #0f172a;
+}
+
+.rest-radar-progress-heading span {
+	font-weight: 750;
+	color: var(--rr-muted);
+}
+
+.rest-radar-progress-bar {
+	height: 10px;
+	margin: 15px 0 14px;
+	overflow: hidden;
+	border-radius: 999px;
+	background: #e2e8f0;
+}
+
+.rest-radar-progress-bar span {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: linear-gradient(90deg, #2563eb 0%, #22c55e 100%);
+}
+
+.rest-radar-workload-list {
+	display: grid;
+	gap: 8px;
+}
+
+.rest-radar-workload-list a {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 11px;
+	border: 1px solid var(--rr-border-soft);
+	border-radius: 12px;
+	background: #fbfdff;
+	color: #334155;
+}
+
+.rest-radar-workload-list span,
+.rest-radar-system-details span {
+	font-size: 12px;
+	font-weight: 750;
+	color: var(--rr-muted);
+}
+
+.rest-radar-workload-list strong {
+	font-size: 18px;
+	color: #0f172a;
+}
+
+.rest-radar-system-state {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	margin: 14px 0;
+	padding: 11px;
+	border: 1px solid var(--rr-border-soft);
+	border-radius: 14px;
+	background: #fbfdff;
+}
+
+.rest-radar-system-state a {
+	font-weight: 750;
+	text-decoration: none;
+}
+
+.rest-radar-system-details {
+	display: grid;
+	gap: 9px;
+}
+
+.rest-radar-system-details div {
+	display: grid;
+	gap: 4px;
+	padding: 10px;
+	border: 1px solid var(--rr-border-soft);
+	border-radius: 12px;
+	background: #ffffff;
+}
+
+.rest-radar-system-details strong {
+	font-size: 14px;
+	line-height: 1.35;
+	color: #0f172a;
+	word-break: break-word;
+}
+
+.rest-radar-metric-strip {
+	display: grid;
+	grid-template-columns: repeat(5, minmax(0, 1fr));
+	gap: 10px;
+	margin-top: 14px;
+}
+
+.rest-radar-strip-metric {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 12px 14px;
+	border: 1px solid var(--rr-border-soft);
+	border-radius: 14px;
+	background: rgba(255, 255, 255, 0.82);
+	color: #334155;
+}
+
+.rest-radar-strip-metric strong {
+	font-size: 24px;
+	line-height: 1;
+	letter-spacing: -0.04em;
+	color: #0f172a;
+}
+
+.rest-radar-strip-metric span {
+	font-size: 11px;
+	font-weight: 800;
+	letter-spacing: 0.04em;
+	text-align: right;
+	text-transform: uppercase;
+	color: var(--rr-muted);
+}
+
+.rest-radar-strip-metric-review { border-left: 4px solid #f59e0b; }
+.rest-radar-strip-metric-public { border-left: 4px solid var(--rr-public); }
+.rest-radar-strip-metric-low { border-left: 4px solid var(--rr-low); }
+.rest-radar-strip-metric-ignored { border-left: 4px solid #64748b; }
+.rest-radar-strip-metric-total { border-left: 4px solid var(--rr-primary); }
+
+@media (max-width: 1280px) {
+	.rest-radar-admin-dashboard-grid {
+		grid-template-columns: 1fr 1fr;
+	}
+
+	.rest-radar-priority-card {
+		grid-column: 1 / -1;
+	}
+
+	.rest-radar-metric-strip {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 960px) {
+	.rest-radar-admin-dashboard-head {
+		flex-direction: column;
+	}
+
+	.rest-radar-admin-dashboard-actions {
+		justify-content: flex-start;
+		min-width: 0;
+	}
+
+	.rest-radar-admin-dashboard-grid,
+	.rest-radar-metric-strip {
+		grid-template-columns: 1fr;
+	}
+}
+
+@media (max-width: 782px) {
+	.rest-radar-admin-dashboard {
+		padding: 15px;
+		border-radius: 14px;
+	}
+
+	.rest-radar-priority-split {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
 }
